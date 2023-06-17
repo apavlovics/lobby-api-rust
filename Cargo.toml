@@ -1,0 +1,9 @@
+[package]
+name = "lobby-api-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
