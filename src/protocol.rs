@@ -41,7 +41,7 @@ enum UserType {
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "$type", rename_all = "snake_case")]
-enum In {
+pub enum Input {
     Ping { seq: Seq },
     Login { username: Username, password: Password },
     SubscribeTables,
@@ -53,7 +53,7 @@ enum In {
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "$type", rename_all = "snake_case")]
-enum Out {
+pub enum Output {
     LoginSuccessful { user_type: UserType },
     LoginFailed,
     Pong { seq : Seq },
@@ -75,10 +75,12 @@ mod tests {
     use std::collections::HashMap;
     use serde_json::{Value, json};
     use crate::protocol::*;
-    use crate::protocol::Out::*;
+    use crate::protocol::Output::*;
 
     #[test]
     fn provide_correct_out_encoders() {
+
+        // TODO Add similar tests for all other messages
         let test_data = HashMap::from([
             (
                 TableAdded {
