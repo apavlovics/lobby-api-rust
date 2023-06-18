@@ -33,7 +33,7 @@ async fn main() {
         .and(warp::ws())
         .and(clients)
         .map(|ws: Ws, clients| {
-            ws.on_upgrade(move |ws| handle_connection(ws, clients))
+            ws.on_upgrade(move |ws| handle_connect(ws, clients))
         });
 
     // Start WebSocket server and await indenifitely
@@ -41,9 +41,9 @@ async fn main() {
     warp::serve(routes).run(([127, 0, 0, 1], 9000)).await;
 }
 
-async fn handle_connection(ws: WebSocket, clients: Clients) {
+async fn handle_connect(ws: WebSocket, clients: Clients) {
     let client_id = ClientId(NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed));
-    info!("Connected client {:?}", client_id);
+    debug!("Connected client {:?}", client_id);
 
     let (mut ws_sender, mut ws_receiver) = ws.split();
     let (client_sender, client_receiver) = mpsc::unbounded_channel::<Output>();
@@ -82,7 +82,7 @@ async fn handle_connection(ws: WebSocket, clients: Clients) {
                         let input: Result<Input, SerdeError> = serde_json::from_str(string);
                         match input {
                             Ok(input) => {
-                                process(client_id, &clients, input).await;
+                                process_input(client_id, &clients, input).await;
                             }
                             Err(e) => {
                                 error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
@@ -90,7 +90,7 @@ async fn handle_connection(ws: WebSocket, clients: Clients) {
                         }
                     }
                     Err(_) => {
-                        error!("Received non-text WebSocket message from client {:?}, ignoring", client_id);
+                        debug!("Received non-text WebSocket message from client {:?}, ignoring", client_id);
                     }
                 }
             }
@@ -100,11 +100,15 @@ async fn handle_connection(ws: WebSocket, clients: Clients) {
             }
         };
     }
-
-    // TODO Handle client disconnection
+    handle_disconnect(client_id, &clients).await;
 }
 
-async fn process(client_id: ClientId, clients: &Clients, input: Input) {
+async fn handle_disconnect(client_id: ClientId, clients: &Clients) {
+    debug!("Client {:?} has disconnected", client_id);
+    clients.write().await.remove(&client_id);
+}
+
+async fn process_input(client_id: ClientId, clients: &Clients, input: Input) {
     let process_result = lobby_session::process(input);
     if let Some(output) = process_result.output {
         if let Some(client_session) = clients.read().await.get(&client_id) {
