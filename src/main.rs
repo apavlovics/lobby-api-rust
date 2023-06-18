@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use lobby_session::{ClientId, ClientSession};
 use protocol::{Input, Output};
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use serde_json::Error as SerdeError;
 use warp::Filter;
@@ -19,7 +19,7 @@ mod lobby_session;
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
 
 /// Represents the currently connected clients.
-type Clients = Arc<RwLock<HashMap<ClientId, ClientSession>>>;
+type Clients = Arc<Mutex<HashMap<ClientId, ClientSession>>>;
 
 #[tokio::main]
 async fn main() {
@@ -69,9 +69,10 @@ async fn handle_connect(ws: WebSocket, clients: Clients) {
     let client_session = ClientSession {
         id: client_id,
         user_type: None,
+        subscribed: false,
         sender: client_sender,
     };
-    clients.write().await.insert(client_id, client_session);
+    clients.lock().await.insert(client_id, client_session);
 
     // Receive, deserialize and process incoming messages
     while let Some(result) = ws_receiver.next().await {
@@ -80,14 +81,7 @@ async fn handle_connect(ws: WebSocket, clients: Clients) {
                 match message.to_str() {
                     Ok(string) => {
                         let input: Result<Input, SerdeError> = serde_json::from_str(string);
-                        match input {
-                            Ok(input) => {
-                                process_input(client_id, &clients, input).await;
-                            }
-                            Err(e) => {
-                                error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
-                            }
-                        }
+                        process_input(client_id, &clients, input).await;
                     }
                     Err(_) => {
                         debug!("Received non-text WebSocket message from client {:?}, ignoring", client_id);
@@ -105,16 +99,30 @@ async fn handle_connect(ws: WebSocket, clients: Clients) {
 
 async fn handle_disconnect(client_id: ClientId, clients: &Clients) {
     debug!("Client {:?} has disconnected", client_id);
-    clients.write().await.remove(&client_id);
+    clients.lock().await.remove(&client_id);
 }
 
-async fn process_input(client_id: ClientId, clients: &Clients, input: Input) {
-    let process_result = lobby_session::process(input);
-    if let Some(output) = process_result.output {
-        if let Some(client_session) = clients.read().await.get(&client_id) {
-            client_session.sender.send(output).unwrap_or_else(|e| {
-                error!("Failed to send message for client {:?}: {}", client_id, e);
-            });
+async fn process_input(client_id: ClientId, clients: &Clients, input: Result<Input, SerdeError>) {
+    if let Some(mut client_session) = clients.lock().await.get_mut(&client_id) {
+        match input {
+            Ok(input) => {
+                let process_result = lobby_session::process(&mut client_session, input);
+                if let Some(output) = process_result.output {
+                    process_output(client_id, &client_session, output).await;
+                }
+            }
+            Err(e) => {
+                error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
+                process_output(client_id, &client_session, Output::InvalidMessage).await;
+            }
         }
+    } else {
+        error!("Failed to retrieve session for client {:?}", client_id);
     }
+}
+
+async fn process_output(client_id: ClientId, client_session: &ClientSession, output: Output) {
+    client_session.sender.send(output).unwrap_or_else(|e| {
+        error!("Failed to send message for client {:?}: {}", client_id, e);
+    });
 }

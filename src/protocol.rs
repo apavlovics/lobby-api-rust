@@ -6,11 +6,11 @@ pub struct Seq(u64);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Username(String);
+pub struct Username(pub String);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Password(String);
+pub struct Password(pub String);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -33,7 +33,7 @@ pub struct Table {
     pub participants: u64,
 }
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum UserType {
     User,
     Admin,
