@@ -1,13 +1,21 @@
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::lobby_session::ClientSessionAction::*;
 use crate::protocol::{Input, Output, UserType, Username, Password, Seq};
 use crate::protocol::Input::*;
 use crate::protocol::Output::*;
 
-/// Represents the result of processing an input message.
+/// The action to perform to the client session upon processing the input message.
+pub enum ClientSessionAction {
+    DoNothing,
+    UpdateUserType { user_type: Option<UserType> },
+}
+
+/// Represents the result of processing the input message.
 pub struct ProcessResult {
     pub output: Option<Output>,
     pub subscription_output: Option<Output>,
+    pub action: ClientSessionAction,
 }
 
 /// Represents the client id.
@@ -25,48 +33,50 @@ pub struct ClientSession {
     pub sender: ClientSender,
 }
 
-pub fn process(client_session: &mut ClientSession, input: Input) -> ProcessResult {
-    match client_session.user_type {
-        None => process_unathenticated(client_session, input),
-        Some(UserType::User) => process_user(client_session, input),
-        Some(UserType::Admin) => process_admin(client_session, input),
+pub fn process(user_type: &Option<UserType>, input: Input) -> ProcessResult {
+    match user_type {
+        None => process_unathenticated(input),
+        Some(UserType::User) => process_user(input),
+        Some(UserType::Admin) => process_admin(input),
     }
 }
 
-fn process_unathenticated(client_session: &mut ClientSession, input: Input) -> ProcessResult {
+fn process_unathenticated(input: Input) -> ProcessResult {
     match input {
-        Login { username, password } => login(client_session, username, password),
+        Login { username, password } => login(username, password),
         _ => ProcessResult {
             output: Some(NotAuthenticated),
             subscription_output: None,
+            action: DoNothing,
         }
     }
 }
 
-fn process_user(client_session: &mut ClientSession, input: Input) -> ProcessResult {
+fn process_user(input: Input) -> ProcessResult {
     match input {
         Ping { seq } => ping(seq),
-        Login { username, password } => login(client_session, username, password),
-        SubscribeTables => todo!(),
-        UnsubscribeTables => todo!(),
+        Login { username, password } => login(username, password),
+        SubscribeTables |
+        UnsubscribeTables => todo!("Complete implementation"),
         AddTable { .. } |
         UpdateTable { .. } |
         RemoveTable { .. } => ProcessResult {
             output: Some(NotAuthorized),
             subscription_output: None,
+            action: DoNothing,
         },
     }
 }
 
-fn process_admin(client_session: &mut ClientSession, input: Input) -> ProcessResult {
+fn process_admin(input: Input) -> ProcessResult {
     match input {
         Ping { seq } => ping(seq),
-        Login { username, password } => login(client_session, username, password),
-        SubscribeTables => todo!(),
-        UnsubscribeTables => todo!(),
-        AddTable { .. } => todo!(),
-        UpdateTable { .. } => todo!(),
-        RemoveTable { .. } => todo!(),
+        Login { username, password } => login(username, password),
+        SubscribeTables |
+        UnsubscribeTables |
+        AddTable { .. } |
+        UpdateTable { .. } |
+        RemoveTable { .. } => todo!("Complete implementation"),
     }
 }
 
@@ -74,22 +84,23 @@ fn ping(seq: Seq) -> ProcessResult {
     ProcessResult {
         output: Some(Pong { seq }),
         subscription_output: None,
+        action: DoNothing,
     }
 }
 
-fn login(client_session: &mut ClientSession, username: Username, password: Password) -> ProcessResult {
+fn login(username: Username, password: Password) -> ProcessResult {
     let user_type = match (username.0.as_str(), password.0.as_str()) {
         ("admin", "admin") => Some(UserType::Admin),
         ("user", "user") => Some(UserType::User),
         _ => None,
     };
-    client_session.user_type = user_type.clone();
-    let output = match user_type {
+    let output = match user_type.clone() {
         None => LoginFailed,
         Some(user_type) => LoginSuccessful { user_type },
     };
     ProcessResult {
         output: Some(output),
         subscription_output: None,
+        action: UpdateUserType { user_type },
     }
 }

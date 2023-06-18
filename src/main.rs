@@ -2,15 +2,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
-use lobby_session::{ClientId, ClientSession};
+use lobby::Lobby;
+use lobby_session::{ClientId, ClientSession, ClientSessionAction};
+use lobby_session::ClientSessionAction::*;
 use protocol::{Input, Output};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use serde_json::Error as SerdeError;
 use warp::Filter;
 use warp::ws::{Ws, Message, WebSocket};
 
 mod protocol;
+mod lobby;
 mod lobby_session;
 
 #[macro_use] extern crate log;
@@ -19,21 +22,29 @@ mod lobby_session;
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
 
 /// Represents the currently connected clients.
-type Clients = Arc<Mutex<HashMap<ClientId, ClientSession>>>;
+type SharedClients = Arc<RwLock<HashMap<ClientId, ClientSession>>>;
+
+/// Represent the lobby that is shared among all the clients.
+type SharedLobby = Arc<Mutex<Lobby>>;
 
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
 
     // Keep track of all connected clients
-    let clients = Clients::default();
+    let clients = SharedClients::default();
     let clients = warp::any().map(move || clients.clone());
+
+    // Keep track of the lobby
+    let lobby = Arc::from(Mutex::from(Lobby::prepopulated()));
+    let lobby = warp::any().map(move || lobby.clone());
 
     let routes = warp::path("lobby_api")
         .and(warp::ws())
         .and(clients)
-        .map(|ws: Ws, clients| {
-            ws.on_upgrade(move |ws| handle_connect(ws, clients))
+        .and(lobby)
+        .map(|ws: Ws, clients: SharedClients, lobby: SharedLobby| {
+            ws.on_upgrade(move |ws| handle_connect(ws, clients, lobby))
         });
 
     // Start WebSocket server and await indenifitely
@@ -41,7 +52,7 @@ async fn main() {
     warp::serve(routes).run(([127, 0, 0, 1], 9000)).await;
 }
 
-async fn handle_connect(ws: WebSocket, clients: Clients) {
+async fn handle_connect(ws: WebSocket, clients: SharedClients, lobby: SharedLobby) {
     let client_id = ClientId(NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed));
     debug!("Connected client {:?}", client_id);
 
@@ -72,7 +83,7 @@ async fn handle_connect(ws: WebSocket, clients: Clients) {
         subscribed: false,
         sender: client_sender,
     };
-    clients.lock().await.insert(client_id, client_session);
+    clients.write().await.insert(client_id, client_session);
 
     // Receive, deserialize and process incoming messages
     while let Some(result) = ws_receiver.next().await {
@@ -81,7 +92,7 @@ async fn handle_connect(ws: WebSocket, clients: Clients) {
                 match message.to_str() {
                     Ok(string) => {
                         let input: Result<Input, SerdeError> = serde_json::from_str(string);
-                        process_input(client_id, &clients, input).await;
+                        process_input(client_id, &clients, &lobby, input).await;
                     }
                     Err(_) => {
                         debug!("Received non-text WebSocket message from client {:?}, ignoring", client_id);
@@ -97,32 +108,60 @@ async fn handle_connect(ws: WebSocket, clients: Clients) {
     handle_disconnect(client_id, &clients).await;
 }
 
-async fn handle_disconnect(client_id: ClientId, clients: &Clients) {
+async fn handle_disconnect(client_id: ClientId, clients: &SharedClients) {
     debug!("Client {:?} has disconnected", client_id);
-    clients.lock().await.remove(&client_id);
+    clients.write().await.remove(&client_id);
 }
 
-async fn process_input(client_id: ClientId, clients: &Clients, input: Result<Input, SerdeError>) {
-    if let Some(mut client_session) = clients.lock().await.get_mut(&client_id) {
+async fn process_input(
+    client_id: ClientId,
+    clients: &SharedClients,
+    lobby: &SharedLobby,
+    input: Result<Input, SerdeError>,
+) {
+    let user_type = match clients.read().await.get(&client_id) {
+        Some(client_session) => client_session.user_type.clone(),
+        None => {
+            error!("Failed to retrieve session for client {:?}", client_id);
+            None
+        }
+    };
+
+    let action: ClientSessionAction =
         match input {
             Ok(input) => {
-                let process_result = lobby_session::process(&mut client_session, input);
+                let process_result = lobby_session::process(&user_type, input);
                 if let Some(output) = process_result.output {
-                    process_output(client_id, &client_session, output).await;
+                    process_output(client_id, &clients, output).await;
                 }
+                process_result.action
             }
             Err(e) => {
                 error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
-                process_output(client_id, &client_session, Output::InvalidMessage).await;
+                process_output(client_id, &clients, Output::InvalidMessage).await;
+                DoNothing
+            }
+        };
+
+    match action {
+        DoNothing => {}
+        UpdateUserType { user_type } => {
+            if let Some(mut client_session) = clients.write().await.get_mut(&client_id) {
+                client_session.user_type = user_type;
             }
         }
-    } else {
-        error!("Failed to retrieve session for client {:?}", client_id);
     }
 }
 
-async fn process_output(client_id: ClientId, client_session: &ClientSession, output: Output) {
-    client_session.sender.send(output).unwrap_or_else(|e| {
-        error!("Failed to send message for client {:?}: {}", client_id, e);
-    });
+async fn process_output(client_id: ClientId, clients: &SharedClients, output: Output) {
+    match clients.read().await.get(&client_id) {
+        Some(client_session) => {
+            client_session.sender.send(output).unwrap_or_else(|e| {
+                error!("Failed to send message for client {:?}: {}", client_id, e);
+            });
+        }
+        None => {
+            error!("Failed to retrieve session for client {:?}", client_id);
+        }
+    }
 }
