@@ -1,5 +1,3 @@
-use tokio::sync::mpsc::UnboundedSender;
-
 use crate::lobby_session::ClientSessionAction::*;
 use crate::protocol::{Input, Output, UserType, Username, Password, Seq};
 use crate::protocol::Input::*;
@@ -21,17 +19,6 @@ pub struct ProcessResult {
 /// Represents the client id.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct ClientId(pub usize);
-
-/// Represents the sender, which can be used to output messages to the client.
-pub type ClientSender = UnboundedSender<Output>;
-
-/// Represents the client session.
-pub struct ClientSession {
-    pub id: ClientId,
-    pub user_type: Option<UserType>,
-    pub subscribed: bool,
-    pub sender: ClientSender,
-}
 
 pub fn process(user_type: &Option<UserType>, input: Input) -> ProcessResult {
     match user_type {

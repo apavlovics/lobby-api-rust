@@ -3,9 +3,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use lobby::Lobby;
-use lobby_session::{ClientId, ClientSession, ClientSessionAction};
+use lobby_session::{ClientId, ClientSessionAction};
 use lobby_session::ClientSessionAction::*;
-use protocol::{Input, Output};
+use protocol::{Input, Output, UserType};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use serde_json::Error as SerdeError;
@@ -20,6 +21,17 @@ mod lobby_session;
 
 /// The global unique client id counter.
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
+
+/// Represents the sender, which can be used to output messages to the client.
+pub type ClientSender = UnboundedSender<Output>;
+
+/// Represents the client session.
+pub struct ClientSession {
+    pub id: ClientId,
+    pub user_type: Option<UserType>,
+    pub subscribed: bool,
+    pub sender: ClientSender,
+}
 
 /// Represents the currently connected clients.
 type SharedClients = Arc<RwLock<HashMap<ClientId, ClientSession>>>;
@@ -127,21 +139,20 @@ async fn process_input(
         }
     };
 
-    let action: ClientSessionAction =
-        match input {
-            Ok(input) => {
-                let process_result = lobby_session::process(&user_type, input);
-                if let Some(output) = process_result.output {
-                    process_output(client_id, &clients, output).await;
-                }
-                process_result.action
+    let action: ClientSessionAction = match input {
+        Ok(input) => {
+            let process_result = lobby_session::process(&user_type, input);
+            if let Some(output) = process_result.output {
+                process_output(client_id, &clients, output).await;
             }
-            Err(e) => {
-                error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
-                process_output(client_id, &clients, Output::InvalidMessage).await;
-                DoNothing
-            }
-        };
+            process_result.action
+        }
+        Err(e) => {
+            error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
+            process_output(client_id, &clients, Output::InvalidMessage).await;
+            DoNothing
+        }
+    };
 
     match action {
         DoNothing => {}
