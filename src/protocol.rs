@@ -14,11 +14,11 @@ pub struct Password(pub String);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TableId(i64);
+pub struct TableId(pub i64);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TableName(String);
+pub struct TableName(pub String);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TableToAdd {
@@ -34,6 +34,7 @@ pub struct Table {
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum UserType {
     User,
     Admin,
