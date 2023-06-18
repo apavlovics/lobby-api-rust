@@ -2,39 +2,39 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-struct Seq(u64);
+pub struct Seq(u64);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-struct Username(String);
+pub struct Username(String);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-struct Password(String);
+pub struct Password(String);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-struct TableId(i64);
+pub struct TableId(i64);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-struct TableName(String);
+pub struct TableName(String);
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
-struct TableToAdd {
-    name: TableName,
-    participants: u64,
+pub struct TableToAdd {
+    pub name: TableName,
+    pub participants: u64,
 }
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
-struct Table {
-    id: TableId,
-    name: TableName,
-    participants: u64,
+pub struct Table {
+    pub id: TableId,
+    pub name: TableName,
+    pub participants: u64,
 }
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
-enum UserType {
+pub enum UserType {
     User,
     Admin,
 }

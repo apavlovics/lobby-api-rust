@@ -69,7 +69,7 @@ async fn handle_connection(ws: WebSocket, clients: Clients) {
 
     // Receive, deserialize and process incoming messages
     while let Some(result) = ws_receiver.next().await {
-        let message = match result {
+        match result {
             Ok(message) => {
                 match message.to_str() {
                     Ok(string) => {
