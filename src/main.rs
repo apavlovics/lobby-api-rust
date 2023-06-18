@@ -6,10 +6,12 @@ use protocol::{Input, Output};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use serde_json::Error as SerdeError;
 use warp::Filter;
 use warp::ws::{Ws, Message, WebSocket};
 
 mod protocol;
+mod lobby_session;
 
 /// The global unique client id counter.
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
@@ -73,7 +75,7 @@ async fn handle_connection(ws: WebSocket, clients: Clients) {
             Ok(message) => {
                 match message.to_str() {
                     Ok(string) => {
-                        let input: Result<Input, serde_json::Error> = serde_json::from_str(string);
+                        let input: Result<Input, SerdeError> = serde_json::from_str(string);
                         match input {
                             Ok(input) => {
                                 process(client_id, &client_sender, input).await;
@@ -100,7 +102,9 @@ async fn handle_connection(ws: WebSocket, clients: Clients) {
 }
 
 async fn process(client_id: ClientId, client_sender: &ClientSender, input: Input) {
-    client_sender.send(Output::InvalidMessage).unwrap_or_else(|e| {
-        eprintln!("Failed to send message for client {:?}: {}", client_id, e);
+    lobby_session::process(input).output.into_iter().for_each(|output| {
+        client_sender.send(output).unwrap_or_else(|e| {
+            eprintln!("Failed to send message for client {:?}: {}", client_id, e);
+        });
     });
 }
