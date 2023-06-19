@@ -62,6 +62,18 @@ impl SharedSessions {
         }
     }
 
+    pub async fn write_user_type(&self, client_id: &ClientId, user_type: Option<UserType>) -> Result<(), String> {
+        self.write(client_id, |session| {
+            session.user_type = user_type;
+        }).await
+    }
+
+    pub async fn write_subscribed(&self, client_id: &ClientId, subscribed: bool) -> Result<(), String> {
+        self.write(client_id, |session| {
+            session.subscribed = subscribed;
+        }).await
+    }
+
     async fn write<F>(
         &self,
         client_id: &ClientId,
@@ -74,18 +86,6 @@ impl SharedSessions {
         } else {
             Self::no_session(client_id)
         }
-    }
-
-    pub async fn write_user_type(&self, client_id: &ClientId, user_type: Option<UserType>) -> Result<(), String> {
-        self.write(client_id, |session| {
-            session.user_type = user_type;
-        }).await
-    }
-
-    pub async fn write_subscribed(&self, client_id: &ClientId, subscribed: bool) -> Result<(), String> {
-        self.write(client_id, |session| {
-            session.subscribed = subscribed;
-        }).await
     }
 
     fn no_session<T>(client_id: &ClientId) -> Result<T, String> {
