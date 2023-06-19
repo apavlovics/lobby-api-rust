@@ -101,6 +101,11 @@ async fn process_input(
                 error!("Failed to write user type for client {:?}: {}", client_id, e);
             });
         }
+        UpdateSubscribed { subscribed } => {
+            sessions.write_subscribed(&client_id, subscribed).await.unwrap_or_else(|e| {
+                error!("Failed to write subscribed for client {:?}: {}", client_id, e);
+            });
+        }
     }
 }
 

@@ -10,6 +10,7 @@ use crate::protocol::Output::*;
 pub enum ClientSessionAction {
     DoNothing,
     UpdateUserType { user_type: Option<UserType> },
+    UpdateSubscribed { subscribed: bool },
 }
 
 /// Represents the result of processing the input message.
@@ -56,7 +57,7 @@ async fn process_user(input: Input, lobby: &SharedLobby) -> ProcessResult {
         Ping { seq } => ping(seq),
         Login { username, password } => login(username, password),
         SubscribeTables => subscribe(lobby).await,
-        UnsubscribeTables => todo!("Complete implementation"),
+        UnsubscribeTables => unsubscribe(),
         AddTable { .. } |
         UpdateTable { .. } |
         RemoveTable { .. } => ProcessResult {
@@ -72,7 +73,7 @@ async fn process_admin(input: Input, lobby: &SharedLobby) -> ProcessResult {
         Ping { seq } => ping(seq),
         Login { username, password } => login(username, password),
         SubscribeTables => subscribe(lobby).await,
-        UnsubscribeTables |
+        UnsubscribeTables => unsubscribe(),
         AddTable { .. } |
         UpdateTable { .. } |
         RemoveTable { .. } => todo!("Complete implementation"),
@@ -110,6 +111,14 @@ async fn subscribe(lobby: &SharedLobby) -> ProcessResult {
     ProcessResult {
         output: Some(TableList { tables }),
         subscription_output: None,
-        action: DoNothing,
+        action: UpdateSubscribed { subscribed: true },
+    }
+}
+
+fn unsubscribe() -> ProcessResult {
+    ProcessResult {
+        output: None,
+        subscription_output: None,
+        action: UpdateSubscribed { subscribed: false },
     }
 }
