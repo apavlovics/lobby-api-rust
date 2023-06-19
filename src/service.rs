@@ -106,7 +106,7 @@ fn login(username: Username, password: Password) -> ProcessResult {
 
 async fn subscribe(lobby: &SharedLobby) -> ProcessResult {
     // TODO Complete implementation
-    let tables = lobby.read().await.tables.clone();
+    let tables = lobby.read_tables().await;
     ProcessResult {
         output: Some(TableList { tables }),
         subscription_output: None,

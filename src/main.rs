@@ -5,11 +5,11 @@ use serde_json::Error as SerdeError;
 use warp::Filter;
 use warp::ws::{Ws, Message, WebSocket};
 
-use crate::lobby::{SharedLobby, SharedLobbyExt};
+use crate::lobby::SharedLobby;
 use crate::protocol::{Input, Output};
 use crate::service::{ClientId, ClientSessionAction};
 use crate::service::ClientSessionAction::*;
-use crate::session::{Session, SharedSessions};
+use crate::session::SharedSessions;
 
 mod lobby;
 mod protocol;
@@ -23,7 +23,7 @@ async fn main() {
     pretty_env_logger::init();
 
     // Keep track of all connected clients
-    let sessions = SharedSessions::default();
+    let sessions = SharedSessions::new();
     let sessions = warp::any().map(move || sessions.clone());
 
     // Keep track of the lobby
@@ -67,14 +67,8 @@ async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: SharedLo
         }
     });
 
-    // Create and persist the client session
-    let session = Session {
-        client_id,
-        client_sender,
-        user_type: None,
-        subscribed: false,
-    };
-    sessions.write().await.insert(client_id, session);
+    // Add the new client session
+    sessions.add(client_id, client_sender).await;
 
     // Receive, deserialize and process incoming messages
     while let Some(result) = ws_receiver.next().await {
@@ -83,7 +77,7 @@ async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: SharedLo
                 match message.to_str() {
                     Ok(string) => {
                         let input: Result<Input, SerdeError> = serde_json::from_str(string);
-                        process_input(client_id, &sessions, &lobby, input).await;
+                        process_input(&client_id, &sessions, &lobby, input).await;
                     }
                     Err(_) => {
                         debug!("Received non-text WebSocket message from client {:?}, ignoring", client_id);
@@ -96,35 +90,35 @@ async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: SharedLo
             }
         };
     }
-    handle_disconnect(client_id, &sessions).await;
+    handle_disconnect(&client_id, &sessions).await;
 }
 
-async fn handle_disconnect(client_id: ClientId, sessions: &SharedSessions) {
+async fn handle_disconnect(client_id: &ClientId, sessions: &SharedSessions) {
     debug!("Client {:?} has disconnected", client_id);
-    sessions.write().await.remove(&client_id);
+    sessions.remove(client_id).await;
 }
 
 async fn process_input(
-    client_id: ClientId,
+    client_id: &ClientId,
     sessions: &SharedSessions,
     lobby: &SharedLobby,
     input: Result<Input, SerdeError>,
 ) {
-    let user_type = match sessions.read().await.get(&client_id) {
-        Some(session) => session.user_type.clone(),
-        None => {
-            error!("Failed to retrieve session for client {:?}", client_id);
-            None
-        }
-    };
-
     let action: ClientSessionAction = match input {
         Ok(input) => {
-            let process_result = service::process(input, &user_type, lobby).await;
-            if let Some(output) = process_result.output {
-                process_output(client_id, &sessions, output).await;
+            match sessions.read_user_type(client_id).await {
+                Ok(user_type) => {
+                    let process_result = service::process(input, &user_type, lobby).await;
+                    if let Some(output) = process_result.output {
+                        process_output(client_id, &sessions, output).await;
+                    }
+                    process_result.action
+                },
+                Err(e) => {
+                    error!("Failed to read user type for client {:?}: {}", client_id, e);
+                    DoNothing
+                },
             }
-            process_result.action
         }
         Err(e) => {
             error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
@@ -136,22 +130,15 @@ async fn process_input(
     match action {
         DoNothing => {}
         UpdateUserType { user_type } => {
-            if let Some(mut session) = sessions.write().await.get_mut(&client_id) {
-                session.user_type = user_type;
-            }
+            sessions.write_user_type(&client_id, user_type).await.unwrap_or_else(|e| {
+                error!("Failed to write user type for client {:?}: {}", client_id, e);
+            });
         }
     }
 }
 
-async fn process_output(client_id: ClientId, sessions: &SharedSessions, output: Output) {
-    match sessions.read().await.get(&client_id) {
-        Some(session) => {
-            session.client_sender.send(output).unwrap_or_else(|e| {
-                error!("Failed to send message for client {:?}: {}", client_id, e);
-            });
-        }
-        None => {
-            error!("Failed to retrieve session for client {:?}", client_id);
-        }
-    }
+async fn process_output(client_id: &ClientId, sessions: &SharedSessions, output: Output) {
+    sessions.send(client_id, output).await.unwrap_or_else(|e| {
+        error!("Failed to send message for client {:?}: {}", client_id, e);
+    });
 }

@@ -28,13 +28,19 @@ impl Lobby {
 }
 
 /// Represent the lobby that is shared among all the clients.
-pub type SharedLobby = Arc<RwLock<Lobby>>;
+#[derive(Clone)]
+pub struct SharedLobby {
+    lobby: Arc<RwLock<Lobby>>,
+}
+impl SharedLobby {
 
-pub trait SharedLobbyExt {
+    pub fn prepopulated() -> Self {
+        SharedLobby {
+            lobby: Arc::from(RwLock::from(Lobby::prepopulated())),
+        }
+    }
 
-    fn prepopulated() -> SharedLobby {
-        Arc::from(RwLock::from(Lobby::prepopulated()))
+    pub async fn read_tables(&self) -> Vec<Table> {
+        self.lobby.read().await.tables.clone()
     }
 }
-
-impl SharedLobbyExt for SharedLobby {}
