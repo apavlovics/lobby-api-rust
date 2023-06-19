@@ -1,4 +1,7 @@
-use crate::lobby_session::ClientSessionAction::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use crate::lobby::SharedLobby;
+use crate::service::ClientSessionAction::*;
 use crate::protocol::{Input, Output, UserType, Username, Password, Seq};
 use crate::protocol::Input::*;
 use crate::protocol::Output::*;
@@ -16,15 +19,24 @@ pub struct ProcessResult {
     pub action: ClientSessionAction,
 }
 
+/// The global unique client id counter.
+static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
+
 /// Represents the client id.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct ClientId(pub usize);
+impl ClientId {
 
-pub fn process(user_type: &Option<UserType>, input: Input) -> ProcessResult {
+    pub fn new() -> Self {
+        ClientId(NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+pub async fn process(input: Input, user_type: &Option<UserType>, lobby: &SharedLobby) -> ProcessResult {
     match user_type {
         None => process_unathenticated(input),
-        Some(UserType::User) => process_user(input),
-        Some(UserType::Admin) => process_admin(input),
+        Some(UserType::User) => process_user(input, lobby).await,
+        Some(UserType::Admin) => process_admin(input, lobby).await,
     }
 }
 
@@ -39,11 +51,11 @@ fn process_unathenticated(input: Input) -> ProcessResult {
     }
 }
 
-fn process_user(input: Input) -> ProcessResult {
+async fn process_user(input: Input, lobby: &SharedLobby) -> ProcessResult {
     match input {
         Ping { seq } => ping(seq),
         Login { username, password } => login(username, password),
-        SubscribeTables |
+        SubscribeTables => subscribe(lobby).await,
         UnsubscribeTables => todo!("Complete implementation"),
         AddTable { .. } |
         UpdateTable { .. } |
@@ -55,11 +67,11 @@ fn process_user(input: Input) -> ProcessResult {
     }
 }
 
-fn process_admin(input: Input) -> ProcessResult {
+async fn process_admin(input: Input, lobby: &SharedLobby) -> ProcessResult {
     match input {
         Ping { seq } => ping(seq),
         Login { username, password } => login(username, password),
-        SubscribeTables |
+        SubscribeTables => subscribe(lobby).await,
         UnsubscribeTables |
         AddTable { .. } |
         UpdateTable { .. } |
@@ -89,5 +101,15 @@ fn login(username: Username, password: Password) -> ProcessResult {
         output: Some(output),
         subscription_output: None,
         action: UpdateUserType { user_type },
+    }
+}
+
+async fn subscribe(lobby: &SharedLobby) -> ProcessResult {
+    // TODO Complete implementation
+    let tables = lobby.read().await.tables.clone();
+    ProcessResult {
+        output: Some(TableList { tables }),
+        subscription_output: None,
+        action: DoNothing,
     }
 }

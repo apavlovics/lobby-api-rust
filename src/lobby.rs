@@ -1,5 +1,9 @@
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
 use crate::protocol::{Table, TableId, TableName};
 
+/// Represent the lobby that contains ordered tables.
 pub struct Lobby {
     pub tables: Vec<Table>,
 }
@@ -22,3 +26,15 @@ impl Lobby {
         }
     }
 }
+
+/// Represent the lobby that is shared among all the clients.
+pub type SharedLobby = Arc<RwLock<Lobby>>;
+
+pub trait SharedLobbyExt {
+
+    fn prepopulated() -> SharedLobby {
+        Arc::from(RwLock::from(Lobby::prepopulated()))
+    }
+}
+
+impl SharedLobbyExt for SharedLobby {}

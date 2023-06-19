@@ -1,62 +1,41 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
-use lobby::Lobby;
-use lobby_session::{ClientId, ClientSessionAction};
-use lobby_session::ClientSessionAction::*;
-use protocol::{Input, Output, UserType};
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use serde_json::Error as SerdeError;
 use warp::Filter;
 use warp::ws::{Ws, Message, WebSocket};
 
-mod protocol;
+use crate::lobby::{SharedLobby, SharedLobbyExt};
+use crate::protocol::{Input, Output};
+use crate::service::{ClientId, ClientSessionAction};
+use crate::service::ClientSessionAction::*;
+use crate::session::{Session, SharedSessions};
+
 mod lobby;
-mod lobby_session;
+mod protocol;
+mod service;
+mod session;
 
 #[macro_use] extern crate log;
-
-/// The global unique client id counter.
-static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
-
-/// Represents the sender, which can be used to output messages to the client.
-pub type ClientSender = UnboundedSender<Output>;
-
-/// Represents the client session.
-pub struct ClientSession {
-    pub id: ClientId,
-    pub user_type: Option<UserType>,
-    pub subscribed: bool,
-    pub sender: ClientSender,
-}
-
-/// Represents the currently connected clients.
-type SharedClients = Arc<RwLock<HashMap<ClientId, ClientSession>>>;
-
-/// Represent the lobby that is shared among all the clients.
-type SharedLobby = Arc<Mutex<Lobby>>;
 
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
 
     // Keep track of all connected clients
-    let clients = SharedClients::default();
-    let clients = warp::any().map(move || clients.clone());
+    let sessions = SharedSessions::default();
+    let sessions = warp::any().map(move || sessions.clone());
 
     // Keep track of the lobby
-    let lobby = Arc::from(Mutex::from(Lobby::prepopulated()));
+    let lobby = SharedLobby::prepopulated();
     let lobby = warp::any().map(move || lobby.clone());
 
     let routes = warp::path("lobby_api")
         .and(warp::ws())
-        .and(clients)
+        .and(sessions)
         .and(lobby)
-        .map(|ws: Ws, clients: SharedClients, lobby: SharedLobby| {
-            ws.on_upgrade(move |ws| handle_connect(ws, clients, lobby))
+        .map(|ws: Ws, sessions: SharedSessions, lobby: SharedLobby| {
+            ws.on_upgrade(move |ws| handle_connect(ws, sessions, lobby))
         });
 
     // Start WebSocket server and await indenifitely
@@ -64,8 +43,8 @@ async fn main() {
     warp::serve(routes).run(([127, 0, 0, 1], 9000)).await;
 }
 
-async fn handle_connect(ws: WebSocket, clients: SharedClients, lobby: SharedLobby) {
-    let client_id = ClientId(NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed));
+async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: SharedLobby) {
+    let client_id = ClientId::new();
     debug!("Connected client {:?}", client_id);
 
     let (mut ws_sender, mut ws_receiver) = ws.split();
@@ -89,13 +68,13 @@ async fn handle_connect(ws: WebSocket, clients: SharedClients, lobby: SharedLobb
     });
 
     // Create and persist the client session
-    let client_session = ClientSession {
-        id: client_id,
+    let session = Session {
+        client_id,
+        client_sender,
         user_type: None,
         subscribed: false,
-        sender: client_sender,
     };
-    clients.write().await.insert(client_id, client_session);
+    sessions.write().await.insert(client_id, session);
 
     // Receive, deserialize and process incoming messages
     while let Some(result) = ws_receiver.next().await {
@@ -104,7 +83,7 @@ async fn handle_connect(ws: WebSocket, clients: SharedClients, lobby: SharedLobb
                 match message.to_str() {
                     Ok(string) => {
                         let input: Result<Input, SerdeError> = serde_json::from_str(string);
-                        process_input(client_id, &clients, &lobby, input).await;
+                        process_input(client_id, &sessions, &lobby, input).await;
                     }
                     Err(_) => {
                         debug!("Received non-text WebSocket message from client {:?}, ignoring", client_id);
@@ -117,22 +96,22 @@ async fn handle_connect(ws: WebSocket, clients: SharedClients, lobby: SharedLobb
             }
         };
     }
-    handle_disconnect(client_id, &clients).await;
+    handle_disconnect(client_id, &sessions).await;
 }
 
-async fn handle_disconnect(client_id: ClientId, clients: &SharedClients) {
+async fn handle_disconnect(client_id: ClientId, sessions: &SharedSessions) {
     debug!("Client {:?} has disconnected", client_id);
-    clients.write().await.remove(&client_id);
+    sessions.write().await.remove(&client_id);
 }
 
 async fn process_input(
     client_id: ClientId,
-    clients: &SharedClients,
+    sessions: &SharedSessions,
     lobby: &SharedLobby,
     input: Result<Input, SerdeError>,
 ) {
-    let user_type = match clients.read().await.get(&client_id) {
-        Some(client_session) => client_session.user_type.clone(),
+    let user_type = match sessions.read().await.get(&client_id) {
+        Some(session) => session.user_type.clone(),
         None => {
             error!("Failed to retrieve session for client {:?}", client_id);
             None
@@ -141,15 +120,15 @@ async fn process_input(
 
     let action: ClientSessionAction = match input {
         Ok(input) => {
-            let process_result = lobby_session::process(&user_type, input);
+            let process_result = service::process(input, &user_type, lobby).await;
             if let Some(output) = process_result.output {
-                process_output(client_id, &clients, output).await;
+                process_output(client_id, &sessions, output).await;
             }
             process_result.action
         }
         Err(e) => {
             error!("Failed to deserialize WebSocket message for client {:?}: {}", client_id, e);
-            process_output(client_id, &clients, Output::InvalidMessage).await;
+            process_output(client_id, &sessions, Output::InvalidMessage).await;
             DoNothing
         }
     };
@@ -157,17 +136,17 @@ async fn process_input(
     match action {
         DoNothing => {}
         UpdateUserType { user_type } => {
-            if let Some(mut client_session) = clients.write().await.get_mut(&client_id) {
-                client_session.user_type = user_type;
+            if let Some(mut session) = sessions.write().await.get_mut(&client_id) {
+                session.user_type = user_type;
             }
         }
     }
 }
 
-async fn process_output(client_id: ClientId, clients: &SharedClients, output: Output) {
-    match clients.read().await.get(&client_id) {
-        Some(client_session) => {
-            client_session.sender.send(output).unwrap_or_else(|e| {
+async fn process_output(client_id: ClientId, sessions: &SharedSessions, output: Output) {
+    match sessions.read().await.get(&client_id) {
+        Some(session) => {
+            session.client_sender.send(output).unwrap_or_else(|e| {
                 error!("Failed to send message for client {:?}: {}", client_id, e);
             });
         }

@@ -12,11 +12,11 @@ pub struct Username(pub String);
 #[serde(transparent)]
 pub struct Password(pub String);
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct TableId(pub i64);
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct TableName(pub String);
 
@@ -26,7 +26,7 @@ pub struct TableToAdd {
     pub participants: u64,
 }
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Table {
     pub id: TableId,
     pub name: TableName,
