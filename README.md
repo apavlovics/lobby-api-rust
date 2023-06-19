@@ -1,6 +1,8 @@
 # Lobby API
 
-This sample application exposes a server for a JSON-based Lobby API over WebSocket. Think of the lobby as a dynamic ordered collection of entities called tables. Lobby API users can subscribe to receive the current snapshot of tables and get notified once Lobby API admins add, update or remove them. The application is implemented in Rust using asynchronous Tokio stack.
+This sample application exposes a server for a JSON-based Lobby API over WebSocket. Think of the lobby as a dynamic ordered collection of entities called tables. Lobby API users can subscribe to receive the current snapshot of tables and get notified once Lobby API admins add, update or remove them.
+
+The application is implemented in Rust using asynchronous Tokio stack.
 
 ## Testing
 
