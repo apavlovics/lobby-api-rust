@@ -3,7 +3,7 @@ use tokio::sync::RwLock;
 
 use crate::protocol::{Table, TableId, TableName, TableToAdd};
 
-/// Represent the lobby that contains ordered tables.
+/// Represents the lobby that contains ordered tables.
 pub struct Lobby {
     pub tables: Vec<Table>,
 }
@@ -45,7 +45,7 @@ impl Lobby {
     }
 }
 
-/// Represent the lobby that is shared among all the clients.
+/// Represents the lobby that is shared among all the clients.
 #[derive(Clone)]
 pub struct SharedLobby {
     lobby: Arc<RwLock<Lobby>>,
