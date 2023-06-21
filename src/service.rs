@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::lobby::SharedLobby;
 use crate::service::ClientSessionAction::*;
-use crate::protocol::{Input, Output, UserType, Username, Password, Seq, TableId, TableToAdd};
+use crate::protocol::{Input, Output, UserType, Username, Password, Seq, TableId, TableToAdd, Table};
 use crate::protocol::Input::*;
 use crate::protocol::Output::*;
 
@@ -75,7 +75,7 @@ async fn process_admin(input: Input, lobby: &SharedLobby) -> ProcessResult {
         SubscribeTables => subscribe(lobby).await,
         UnsubscribeTables => unsubscribe(),
         AddTable { after_id, table } => add_table(after_id, table, lobby).await,
-        UpdateTable { .. } => todo!("Complete implementation"),
+        UpdateTable { table } => update_table(table, lobby).await,
         RemoveTable { id } => remove_table(id, lobby).await,
     }
 }
@@ -140,9 +140,28 @@ async fn add_table(after_id: TableId, table_to_add: TableToAdd, lobby: &SharedLo
     }
 }
 
+async fn update_table(table_to_update: Table, lobby: &SharedLobby) -> ProcessResult {
+    let id = table_to_update.id;
+    match lobby.update_table(table_to_update).await {
+        Ok(table) => ProcessResult {
+            output: None,
+            subscription_output: Some(TableUpdated { table }),
+            action: DoNothing,
+        },
+        Err(e) => {
+            debug!("Failed to update table: {}", e);
+            ProcessResult {
+                output: Some(TableUpdateFailed { id }),
+                subscription_output: None,
+                action: DoNothing,
+            }
+        }
+    }
+}
+
 async fn remove_table(id: TableId, lobby: &SharedLobby) -> ProcessResult {
     match lobby.remove_table(id).await {
-        Ok(_) => ProcessResult {
+        Ok(id) => ProcessResult {
             output: None,
             subscription_output: Some(TableRemoved { id }),
             action: DoNothing,

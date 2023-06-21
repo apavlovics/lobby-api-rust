@@ -38,17 +38,31 @@ impl Lobby {
                     Ok(table)
                 }
                 None => {
-                    Err(format!("Cannot find table {:?}, which a new table should be added after", after_id))
+                    Err(format!("Cannot find table {:?}, after which another table should be added", after_id))
                 }
             }
         }
     }
 
-    pub fn remove_table(&mut self, id: TableId) -> Result<(), String> {
+    pub fn update_table(&mut self, table_to_update: Table) -> Result<Table, String> {
+        match self.tables.iter_mut().find(|table| table.id == table_to_update.id) {
+            Some(table) => {
+                // TODO Extract into a method on table
+                table.name = table_to_update.name;
+                table.participants = table_to_update.participants;
+                Ok(table.clone())
+            }
+            None => {
+                Err(format!("Cannot find table {:?}, which should be updated", table_to_update.id))
+            },
+        }
+    }
+
+    pub fn remove_table(&mut self, id: TableId) -> Result<TableId, String> {
         match self.tables.iter().position(|table| table.id == id) {
             Some(index) => {
                 self.tables.remove(index);
-                Ok(())
+                Ok(id)
             }
             None => {
                 Err(format!("Cannot find table {:?}, which should be removed", id))
@@ -78,7 +92,11 @@ impl SharedLobby {
         self.lobby.write().await.add_table(after_id, table_to_add)
     }
 
-    pub async fn remove_table(&self, id: TableId) -> Result<(), String> {
+    pub async fn update_table(&self, table_to_update: Table) -> Result<Table, String> {
+        self.lobby.write().await.update_table(table_to_update)
+    }
+
+    pub async fn remove_table(&self, id: TableId) -> Result<TableId, String> {
         self.lobby.write().await.remove_table(id)
     }
 }
