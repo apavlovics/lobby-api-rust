@@ -79,6 +79,9 @@ async fn process_input(
                     if let Some(output) = process_result.output {
                         process_output(client_id, &sessions, output).await;
                     }
+                    if let Some(subscription_output) = process_result.subscription_output {
+                        broadcast(&sessions, subscription_output).await;
+                    }
                     process_result.action
                 },
                 Err(e) => {
@@ -113,4 +116,9 @@ async fn process_output(client_id: ClientId, sessions: &SharedSessions, output: 
     sessions.send(client_id, output).await.unwrap_or_else(|e| {
         error!("Failed to send message for client {:?}: {}", client_id, e);
     });
+}
+
+async fn broadcast(sessions: &SharedSessions, output: Output) {
+    let broadcast_result = sessions.broadcast(output).await;
+    debug!("Broadcasted message: {:?}", broadcast_result);
 }

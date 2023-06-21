@@ -34,11 +34,11 @@ impl Lobby {
         } else {
             match self.tables.iter().position(|table| table.id == after_id) {
                 Some(index) => {
-                    self.tables.insert(index, table.clone());
+                    self.tables.insert(index + 1, table.clone());
                     Ok(table)
                 }
                 None => {
-                    Err(format!("Cannot find existing table with id {:?}", after_id))
+                    Err(format!("Cannot find existing table {:?}", after_id))
                 }
             }
         }

@@ -2,7 +2,7 @@ use std::sync::atomic::{Ordering, AtomicIsize};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Seq(u64);
 
@@ -76,7 +76,7 @@ pub enum Input {
     RemoveTable { id: TableId },
 }
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "$type", rename_all = "snake_case")]
 pub enum Output {
     LoginSuccessful { user_type: UserType },

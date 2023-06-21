@@ -16,6 +16,21 @@ pub struct Session {
     pub subscribed: bool,
 }
 
+#[derive(Debug)]
+pub struct BroadcastResult {
+    pub success_client_ids: Vec<ClientId>,
+    pub failure_client_ids: Vec<ClientId>,
+}
+impl BroadcastResult {
+
+    pub fn new() -> Self {
+        BroadcastResult {
+            success_client_ids: vec![],
+            failure_client_ids: vec![],
+        }
+    }
+}
+
 /// Represents the currently connected client sessions.
 #[derive(Clone)]
 pub struct SharedSessions {
@@ -43,6 +58,7 @@ impl SharedSessions {
         self.sessions.write().await.remove(&client_id);
     }
 
+    /// Sends the output message to the given client.
     pub async fn send(&self, client_id: ClientId, output: Output) -> Result<(), String> {
         match self.sessions.read().await.get(&client_id) {
             Some(session) => {
@@ -52,6 +68,35 @@ impl SharedSessions {
                 Self::no_session(client_id)
             }
         }
+    }
+
+    /// Broadcasts the output message to all subscribed clients.
+    pub async fn broadcast(&self, output: Output) -> BroadcastResult {
+        self.sessions.read().await
+            .values()
+            .filter_map(|session| {
+                if session.subscribed {
+                    Some(
+                        session.client_sender
+                            .send(output.clone())
+                            .map(|_| session.client_id)
+                            .map_err(|_| session.client_id)
+                    )
+                } else {
+                    None
+                }
+            }).fold(BroadcastResult::new(), |mut acc, result| {
+                match result {
+                    Ok(client_id) => {
+                        acc.success_client_ids.push(client_id);
+                        acc
+                    }
+                    Err(client_id) => {
+                        acc.failure_client_ids.push(client_id);
+                        acc
+                    }
+                }
+            })
     }
 
     pub async fn read_user_type(&self, client_id: ClientId) -> Result<Option<UserType>, String> {
