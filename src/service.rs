@@ -74,9 +74,9 @@ async fn process_admin(input: Input, lobby: &SharedLobby) -> ProcessResult {
         Login { username, password } => login(username, password),
         SubscribeTables => subscribe(lobby).await,
         UnsubscribeTables => unsubscribe(),
-        AddTable { after_id, table_to_add } => add_table(after_id, table_to_add, lobby).await,
-        UpdateTable { .. } |
-        RemoveTable { .. } => todo!("Complete implementation"),
+        AddTable { after_id, table } => add_table(after_id, table, lobby).await,
+        UpdateTable { .. } => todo!("Complete implementation"),
+        RemoveTable { id } => remove_table(id, lobby).await,
     }
 }
 
@@ -136,6 +136,24 @@ async fn add_table(after_id: TableId, table_to_add: TableToAdd, lobby: &SharedLo
                 subscription_output: None,
                 action: DoNothing,
             }
+        }
+    }
+}
+
+async fn remove_table(id: TableId, lobby: &SharedLobby) -> ProcessResult {
+    match lobby.remove_table(id).await {
+        Ok(_) => ProcessResult {
+            output: None,
+            subscription_output: Some(TableRemoved { id }),
+            action: DoNothing,
         },
+        Err(e) => {
+            debug!("Failed to remove table: {}", e);
+            ProcessResult {
+                output: Some(TableRemoveFailed { id }),
+                subscription_output: None,
+                action: DoNothing,
+            }
+        }
     }
 }

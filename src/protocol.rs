@@ -71,7 +71,7 @@ pub enum Input {
     Login { username: Username, password: Password },
     SubscribeTables,
     UnsubscribeTables,
-    AddTable { after_id: TableId, table_to_add: TableToAdd },
+    AddTable { after_id: TableId, table: TableToAdd },
     UpdateTable { table: Table },
     RemoveTable { id: TableId },
 }

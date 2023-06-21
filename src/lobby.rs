@@ -38,8 +38,20 @@ impl Lobby {
                     Ok(table)
                 }
                 None => {
-                    Err(format!("Cannot find existing table {:?}", after_id))
+                    Err(format!("Cannot find table {:?}, which a new table should be added after", after_id))
                 }
+            }
+        }
+    }
+
+    pub fn remove_table(&mut self, id: TableId) -> Result<(), String> {
+        match self.tables.iter().position(|table| table.id == id) {
+            Some(index) => {
+                self.tables.remove(index);
+                Ok(())
+            }
+            None => {
+                Err(format!("Cannot find table {:?}, which should be removed", id))
             }
         }
     }
@@ -64,5 +76,9 @@ impl SharedLobby {
 
     pub async fn add_table(&self, after_id: TableId, table_to_add: TableToAdd) -> Result<Table, String> {
         self.lobby.write().await.add_table(after_id, table_to_add)
+    }
+
+    pub async fn remove_table(&self, id: TableId) -> Result<(), String> {
+        self.lobby.write().await.remove_table(id)
     }
 }
