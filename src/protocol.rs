@@ -1,3 +1,5 @@
+use std::sync::atomic::{Ordering, AtomicIsize};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -12,9 +14,21 @@ pub struct Username(pub String);
 #[serde(transparent)]
 pub struct Password(pub String);
 
-#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+/// The global unique table id generator.
+static NEXT_TABLE_ID: AtomicIsize = AtomicIsize::new(1);
+
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TableId(pub i64);
+pub struct TableId(pub isize);
+impl TableId {
+
+    pub fn new() -> Self {
+        TableId(NEXT_TABLE_ID.fetch_add(1, Ordering::Relaxed))
+    }
+
+    /// Table id to use as an absent (special, nonexistent) value.
+    pub const ABSENT: TableId = TableId(-1);
+}
 
 #[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -24,6 +38,16 @@ pub struct TableName(pub String);
 pub struct TableToAdd {
     pub name: TableName,
     pub participants: u64,
+}
+impl TableToAdd {
+
+    pub fn into_table(self, id: TableId) -> Table {
+        Table {
+            id,
+            name: self.name,
+            participants: self.participants,
+        }
+    }
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -85,7 +109,7 @@ mod tests {
         let test_data = HashMap::from([
             (
                 TableAdded {
-                    after_id: TableId(-1),
+                    after_id: TableId::ABSENT,
                     table: Table {
                         id: TableId(3),
                         name: TableName(String::from("table - Foo Fighters")),

@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::lobby::SharedLobby;
 use crate::service::ClientSessionAction::*;
-use crate::protocol::{Input, Output, UserType, Username, Password, Seq};
+use crate::protocol::{Input, Output, UserType, Username, Password, Seq, TableId, TableToAdd};
 use crate::protocol::Input::*;
 use crate::protocol::Output::*;
 
@@ -20,11 +20,11 @@ pub struct ProcessResult {
     pub action: ClientSessionAction,
 }
 
-/// The global unique client id counter.
+/// The global unique client id generator.
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
 
 /// Represents the client id.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct ClientId(pub usize);
 impl ClientId {
 
@@ -74,7 +74,7 @@ async fn process_admin(input: Input, lobby: &SharedLobby) -> ProcessResult {
         Login { username, password } => login(username, password),
         SubscribeTables => subscribe(lobby).await,
         UnsubscribeTables => unsubscribe(),
-        AddTable { .. } |
+        AddTable { after_id, table_to_add } => add_table(after_id, table_to_add, lobby).await,
         UpdateTable { .. } |
         RemoveTable { .. } => todo!("Complete implementation"),
     }
@@ -119,5 +119,23 @@ fn unsubscribe() -> ProcessResult {
         output: None,
         subscription_output: None,
         action: UpdateSubscribed { subscribed: false },
+    }
+}
+
+async fn add_table(after_id: TableId, table_to_add: TableToAdd, lobby: &SharedLobby) -> ProcessResult {
+    match lobby.add_table(after_id, table_to_add).await {
+        Ok(table) => ProcessResult {
+            output: None,
+            subscription_output: Some(TableAdded { after_id, table }),
+            action: DoNothing,
+        },
+        Err(e) => {
+            debug!("Failed to add table: {}", e);
+            ProcessResult {
+                output: Some(TableAddFailed),
+                subscription_output: None,
+                action: DoNothing,
+            }
+        },
     }
 }

@@ -39,12 +39,12 @@ impl SharedSessions {
         self.sessions.write().await.insert(client_id, session);
     }
 
-    pub async fn remove(&self, client_id: &ClientId) {
-        self.sessions.write().await.remove(client_id);
+    pub async fn remove(&self, client_id: ClientId) {
+        self.sessions.write().await.remove(&client_id);
     }
 
-    pub async fn send(&self, client_id: &ClientId, output: Output) -> Result<(), String> {
-        match self.sessions.read().await.get(client_id) {
+    pub async fn send(&self, client_id: ClientId, output: Output) -> Result<(), String> {
+        match self.sessions.read().await.get(&client_id) {
             Some(session) => {
                 session.client_sender.send(output).map_err(|e| e.to_string())
             }
@@ -54,21 +54,21 @@ impl SharedSessions {
         }
     }
 
-    pub async fn read_user_type(&self, client_id: &ClientId) -> Result<Option<UserType>, String> {
-        if let Some(session) = self.sessions.read().await.get(client_id) {
-            Result::Ok(session.user_type.clone())
+    pub async fn read_user_type(&self, client_id: ClientId) -> Result<Option<UserType>, String> {
+        if let Some(session) = self.sessions.read().await.get(&client_id) {
+            Ok(session.user_type.clone())
         } else {
             Self::no_session(client_id)
         }
     }
 
-    pub async fn write_user_type(&self, client_id: &ClientId, user_type: Option<UserType>) -> Result<(), String> {
+    pub async fn write_user_type(&self, client_id: ClientId, user_type: Option<UserType>) -> Result<(), String> {
         self.write(client_id, |session| {
             session.user_type = user_type;
         }).await
     }
 
-    pub async fn write_subscribed(&self, client_id: &ClientId, subscribed: bool) -> Result<(), String> {
+    pub async fn write_subscribed(&self, client_id: ClientId, subscribed: bool) -> Result<(), String> {
         self.write(client_id, |session| {
             session.subscribed = subscribed;
         }).await
@@ -76,19 +76,19 @@ impl SharedSessions {
 
     async fn write<F>(
         &self,
-        client_id: &ClientId,
+        client_id: ClientId,
         f: F,
     ) -> Result<(), String>
     where F: FnOnce(&mut Session) -> () {
-        if let Some(session) = self.sessions.write().await.get_mut(client_id) {
+        if let Some(session) = self.sessions.write().await.get_mut(&client_id) {
             f(session);
-            Result::Ok(())
+            Ok(())
         } else {
             Self::no_session(client_id)
         }
     }
 
-    fn no_session<T>(client_id: &ClientId) -> Result<T, String> {
-        Result::Err(format!("Failed to retrieve session for client {:?}", client_id))
+    fn no_session<T>(client_id: ClientId) -> Result<T, String> {
+        Err(format!("Failed to retrieve session for client {:?}", client_id))
     }
 }

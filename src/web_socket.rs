@@ -44,7 +44,7 @@ pub async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: Shar
                 match message.to_str() {
                     Ok(string) => {
                         let input: Result<Input, SerdeError> = serde_json::from_str(string);
-                        process_input(&client_id, &sessions, &lobby, input).await;
+                        process_input(client_id, &sessions, &lobby, input).await;
                     }
                     Err(_) => {
                         debug!("Received non-text WebSocket message from client {:?}, ignoring", client_id);
@@ -57,16 +57,16 @@ pub async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: Shar
             }
         };
     }
-    handle_disconnect(&client_id, &sessions).await;
+    handle_disconnect(client_id, &sessions).await;
 }
 
-async fn handle_disconnect(client_id: &ClientId, sessions: &SharedSessions) {
+async fn handle_disconnect(client_id: ClientId, sessions: &SharedSessions) {
     debug!("Client {:?} has disconnected", client_id);
     sessions.remove(client_id).await;
 }
 
 async fn process_input(
-    client_id: &ClientId,
+    client_id: ClientId,
     sessions: &SharedSessions,
     lobby: &SharedLobby,
     input: Result<Input, SerdeError>,
@@ -97,19 +97,19 @@ async fn process_input(
     match action {
         DoNothing => {}
         UpdateUserType { user_type } => {
-            sessions.write_user_type(&client_id, user_type).await.unwrap_or_else(|e| {
+            sessions.write_user_type(client_id, user_type).await.unwrap_or_else(|e| {
                 error!("Failed to write user type for client {:?}: {}", client_id, e);
             });
         }
         UpdateSubscribed { subscribed } => {
-            sessions.write_subscribed(&client_id, subscribed).await.unwrap_or_else(|e| {
+            sessions.write_subscribed(client_id, subscribed).await.unwrap_or_else(|e| {
                 error!("Failed to write subscribed for client {:?}: {}", client_id, e);
             });
         }
     }
 }
 
-async fn process_output(client_id: &ClientId, sessions: &SharedSessions, output: Output) {
+async fn process_output(client_id: ClientId, sessions: &SharedSessions, output: Output) {
     sessions.send(client_id, output).await.unwrap_or_else(|e| {
         error!("Failed to send message for client {:?}: {}", client_id, e);
     });
