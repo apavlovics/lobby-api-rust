@@ -56,6 +56,14 @@ pub struct Table {
     pub name: TableName,
     pub participants: u64,
 }
+impl Table {
+
+    /// Updates all fields of this table with fields of the other table, excluding id.
+    pub fn update_with(&mut self, other: Table) {
+        self.name = other.name;
+        self.participants = other.participants;
+    }
+}
 
 #[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

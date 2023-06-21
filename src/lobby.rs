@@ -47,9 +47,7 @@ impl Lobby {
     pub fn update_table(&mut self, table_to_update: Table) -> Result<Table, String> {
         match self.tables.iter_mut().find(|table| table.id == table_to_update.id) {
             Some(table) => {
-                // TODO Extract into a method on table
-                table.name = table_to_update.name;
-                table.participants = table_to_update.participants;
+                table.update_with(table_to_update);
                 Ok(table.clone())
             }
             None => {
