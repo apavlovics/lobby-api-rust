@@ -112,7 +112,6 @@ mod tests {
 
     #[test]
     fn provide_correct_in_decoders() {
-
         let inputs = HashMap::from([
             (
                 r#"{
@@ -121,6 +120,54 @@ mod tests {
                     "password": "pass"
                 }"#,
                 test_data::login(),
+            ),
+            (
+                r#"{
+                    "$type": "ping",
+                    "seq": 12345
+                }"#,
+                test_data::ping(),
+            ),
+            (
+                r#"{
+                    "$type": "subscribe_tables"
+                }"#,
+                test_data::subscribe_tables(),
+            ),
+            (
+                r#"{
+                    "$type": "unsubscribe_tables"
+                }"#,
+                test_data::unsubscribe_tables(),
+            ),
+            (
+                r#"{
+                    "$type": "add_table",
+                    "after_id": -1,
+                    "table": {
+                      "name": "table - Foo Fighters",
+                      "participants": 4
+                    }
+                }"#,
+                test_data::add_table(),
+            ),
+            (
+                r#"{
+                    "$type": "update_table",
+                    "table": {
+                      "id": 3,
+                      "name": "table - Foo Fighters",
+                      "participants": 4
+                    }
+                }"#,
+                test_data::update_table(),
+            ),
+            (
+                r#"{
+                    "$type": "remove_table",
+                    "id": 3
+                }"#,
+                test_data::remove_table(),
             ),
         ]);
 
@@ -132,7 +179,6 @@ mod tests {
 
     #[test]
     fn provide_correct_out_encoders() {
-
         let outputs = HashMap::from([
             (
                 test_data::login_successful_user(),
@@ -296,12 +342,52 @@ mod tests {
             }
         }
 
+        fn table_to_add_foo_fighters() -> TableToAdd {
+            TableToAdd {
+                name: TableName(String::from("table - Foo Fighters")),
+                participants: 4,
+            }
+        }
+
         // Input
 
         pub fn login() -> Input {
             Login {
                 username: Username(String::from("user")),
                 password: Password(String::from("pass")),
+            }
+        }
+
+        pub fn ping() -> Input {
+            Ping {
+                seq: Seq(12345),
+            }
+        }
+
+        pub fn subscribe_tables() -> Input {
+            SubscribeTables
+        }
+
+        pub fn unsubscribe_tables() -> Input {
+            UnsubscribeTables
+        }
+
+        pub fn add_table() -> Input {
+            AddTable {
+                after_id: TableId::ABSENT,
+                table: table_to_add_foo_fighters(),
+            }
+        }
+
+        pub fn update_table() -> Input {
+            UpdateTable {
+                table: table_foo_fighters(),
+            }
+        }
+
+        pub fn remove_table() -> Input {
+            RemoveTable {
+                id: TableId(3),
             }
         }
 
