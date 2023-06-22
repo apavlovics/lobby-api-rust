@@ -120,6 +120,7 @@ mod tests {
             assert_eq!(actual_input, expected_input);
         }
 
+        // Ensure at compile time that all input variants are verified
         for input_discriminant in InputDiscriminants::iter() {
             match input_discriminant {
                 InputDiscriminants::Ping => verify(
@@ -191,6 +192,7 @@ mod tests {
             assert_eq!(actual_value, expected_value);
         }
 
+        // Ensure at compile time that all input variants are verified
         for output_discriminant in OutputDiscriminants::iter() {
             match output_discriminant {
                 OutputDiscriminants::LoginSuccessful => {
