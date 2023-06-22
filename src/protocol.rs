@@ -113,7 +113,7 @@ mod tests {
     use super::{Input, Output, OutputDiscriminants, InputDiscriminants};
 
     #[test]
-    fn provide_correct_in_decoders() {
+    fn provide_correct_input_decoders() {
 
         fn verify(str: &str, expected_input: Input) {
             let actual_input: Input = serde_json::from_str(str).expect("Failed to deserialize input");
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn provide_correct_out_encoders() {
+    fn provide_correct_output_encoders() {
 
         fn verify(output: Output, expected_value: Value) {
             let actual_string = serde_json::to_string(&output).expect("Failed to serialize output");
