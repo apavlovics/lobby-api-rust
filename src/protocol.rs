@@ -192,7 +192,7 @@ mod tests {
             assert_eq!(actual_value, expected_value);
         }
 
-        // Ensure at compile time that all input variants are verified
+        // Ensure at compile time that all output variants are verified
         for output_discriminant in OutputDiscriminants::iter() {
             match output_discriminant {
                 OutputDiscriminants::LoginSuccessful => {
