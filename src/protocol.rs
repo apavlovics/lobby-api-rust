@@ -187,6 +187,51 @@ mod tests {
                     }
                 }),
             ),
+            (
+                test_data::table_removed(),
+                json!({
+                    "$type": "table_removed",
+                    "id": 3
+                }),
+            ),
+            (
+                test_data::table_add_failed(),
+                json!({
+                    "$type": "table_add_failed"
+                }),
+            ),
+            (
+                test_data::table_update_failed(),
+                json!({
+                    "$type": "table_update_failed",
+                    "id": 99999
+                }),
+            ),
+            (
+                test_data::table_remove_failed(),
+                json!({
+                    "$type": "table_remove_failed",
+                    "id": 99999
+                }),
+            ),
+            (
+                test_data::not_authorized(),
+                json!({
+                    "$type": "not_authorized"
+                }),
+            ),
+            (
+                test_data::not_authenticated(),
+                json!({
+                    "$type": "not_authenticated"
+                }),
+            ),
+            (
+                test_data::invalid_message(),
+                json!({
+                    "$type": "invalid_message"
+                }),
+            ),
         ]);
 
         for (out, expected_value) in test_data {
@@ -271,6 +316,36 @@ mod tests {
             TableUpdated {
                 table: table_foo_fighters(),
             }
+        }
+
+        pub fn table_removed() -> Output {
+            TableRemoved {
+                id: TableId(3),
+            }
+        }
+
+        pub fn table_add_failed() -> Output {
+            TableAddFailed
+        }
+
+        pub fn table_update_failed() -> Output {
+            TableUpdateFailed { id: TableId(99999) }
+        }
+
+        pub fn table_remove_failed() -> Output {
+            TableRemoveFailed { id: TableId(99999) }
+        }
+
+        pub fn not_authorized() -> Output {
+            NotAuthorized
+        }
+
+        pub fn not_authenticated() -> Output {
+            NotAuthenticated
+        }
+
+        pub fn invalid_message() -> Output {
+            InvalidMessage
         }
     }
 }
