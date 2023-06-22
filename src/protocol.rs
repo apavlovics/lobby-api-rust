@@ -2,15 +2,15 @@ use std::sync::atomic::{Ordering, AtomicIsize};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Seq(u64);
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Username(pub String);
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Password(pub String);
 
@@ -30,11 +30,11 @@ impl TableId {
     pub const ABSENT: TableId = TableId(-1);
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct TableName(pub String);
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TableToAdd {
     pub name: TableName,
     pub participants: u64,
@@ -50,7 +50,7 @@ impl TableToAdd {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Table {
     pub id: TableId,
     pub name: TableName,
@@ -72,7 +72,7 @@ pub enum UserType {
     Admin,
 }
 
-#[derive(Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "$type", rename_all = "snake_case")]
 pub enum Input {
     Ping { seq: Seq },
@@ -108,11 +108,32 @@ mod tests {
     use std::collections::HashMap;
     use serde_json::{Value, json};
 
+    use crate::protocol::Input;
+
+    #[test]
+    fn provide_correct_in_decoders() {
+
+        let inputs = HashMap::from([
+            (
+                r#"{
+                    "$type": "login",
+                    "username": "user",
+                    "password": "pass"
+                }"#,
+                test_data::login(),
+            ),
+        ]);
+
+        for (str, expected_input) in inputs {
+            let actual_input: Input = serde_json::from_str(str).expect("Failed to deserialize input");
+            assert_eq!(actual_input, expected_input);
+        }
+    }
+
     #[test]
     fn provide_correct_out_encoders() {
 
-        // TODO Add similar tests for all other messages
-        let test_data = HashMap::from([
+        let outputs = HashMap::from([
             (
                 test_data::login_successful_user(),
                 json!({
@@ -234,19 +255,22 @@ mod tests {
             ),
         ]);
 
-        for (out, expected_value) in test_data {
-            let actual = serde_json::to_string(&out).expect("Failed to serialize to string");
-            let actual_value: Value = serde_json::from_str(&actual).expect("Failed to deserialize to JSON");
+        for (output, expected_value) in outputs {
+            let actual_string = serde_json::to_string(&output).expect("Failed to serialize output");
+            let actual_value: Value = serde_json::from_str(&actual_string).expect("Failed to deserialize to JSON");
             assert_eq!(actual_value, expected_value);
         }
     }
 
     mod test_data {
 
-        use crate::protocol::{Output, UserType, TableId, Table, TableName, Seq};
+        use crate::protocol::*;
+        use crate::protocol::Input::*;
         use crate::protocol::Output::*;
 
         // Common
+
+        const TABLE_ID_INVALID: TableId = TableId(99999);
 
         fn table_james_bond() -> Table {
             Table {
@@ -269,6 +293,15 @@ mod tests {
                 id: TableId(3),
                 name: TableName(String::from("table - Foo Fighters")),
                 participants: 4,
+            }
+        }
+
+        // Input
+
+        pub fn login() -> Input {
+            Login {
+                username: Username(String::from("user")),
+                password: Password(String::from("pass")),
             }
         }
 
@@ -329,11 +362,11 @@ mod tests {
         }
 
         pub fn table_update_failed() -> Output {
-            TableUpdateFailed { id: TableId(99999) }
+            TableUpdateFailed { id: TABLE_ID_INVALID }
         }
 
         pub fn table_remove_failed() -> Output {
-            TableRemoveFailed { id: TableId(99999) }
+            TableRemoveFailed { id: TABLE_ID_INVALID }
         }
 
         pub fn not_authorized() -> Output {
