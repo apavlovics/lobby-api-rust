@@ -1,6 +1,6 @@
 use std::sync::atomic::{Ordering, AtomicIsize};
-
 use serde::{Deserialize, Serialize};
+use strum_macros::{EnumDiscriminants, EnumIter};
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -72,8 +72,9 @@ pub enum UserType {
     Admin,
 }
 
-#[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, EnumDiscriminants, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "$type", rename_all = "snake_case")]
+#[strum_discriminants(derive(EnumIter))]
 pub enum Input {
     Ping { seq: Seq },
     Login { username: Username, password: Password },
@@ -84,8 +85,9 @@ pub enum Input {
     RemoveTable { id: TableId },
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Hash, Eq, EnumDiscriminants, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "$type", rename_all = "snake_case")]
+#[strum_discriminants(derive(EnumIter))]
 pub enum Output {
     LoginSuccessful { user_type: UserType },
     LoginFailed,
@@ -105,206 +107,207 @@ pub enum Output {
 #[cfg(test)]
 mod tests {
 
-    use std::collections::HashMap;
     use serde_json::{Value, json};
+    use strum::IntoEnumIterator;
 
-    use crate::protocol::Input;
+    use super::{Input, Output, OutputDiscriminants, InputDiscriminants};
 
     #[test]
     fn provide_correct_in_decoders() {
-        let inputs = HashMap::from([
-            (
-                r#"{
-                    "$type": "login",
-                    "username": "user",
-                    "password": "pass"
-                }"#,
-                test_data::login(),
-            ),
-            (
-                r#"{
-                    "$type": "ping",
-                    "seq": 12345
-                }"#,
-                test_data::ping(),
-            ),
-            (
-                r#"{
-                    "$type": "subscribe_tables"
-                }"#,
-                test_data::subscribe_tables(),
-            ),
-            (
-                r#"{
-                    "$type": "unsubscribe_tables"
-                }"#,
-                test_data::unsubscribe_tables(),
-            ),
-            (
-                r#"{
-                    "$type": "add_table",
-                    "after_id": -1,
-                    "table": {
-                      "name": "table - Foo Fighters",
-                      "participants": 4
-                    }
-                }"#,
-                test_data::add_table(),
-            ),
-            (
-                r#"{
-                    "$type": "update_table",
-                    "table": {
-                      "id": 3,
-                      "name": "table - Foo Fighters",
-                      "participants": 4
-                    }
-                }"#,
-                test_data::update_table(),
-            ),
-            (
-                r#"{
-                    "$type": "remove_table",
-                    "id": 3
-                }"#,
-                test_data::remove_table(),
-            ),
-        ]);
 
-        for (str, expected_input) in inputs {
+        fn verify(str: &str, expected_input: Input) {
             let actual_input: Input = serde_json::from_str(str).expect("Failed to deserialize input");
             assert_eq!(actual_input, expected_input);
+        }
+
+        for input_discriminant in InputDiscriminants::iter() {
+            match input_discriminant {
+                InputDiscriminants::Ping => verify(
+                    r#"{
+                        "$type": "ping",
+                        "seq": 12345
+                    }"#,
+                    test_data::ping(),
+                ),
+                InputDiscriminants::Login => verify(
+                    r#"{
+                        "$type": "login",
+                        "username": "user",
+                        "password": "pass"
+                    }"#,
+                    test_data::login(),
+                ),
+                InputDiscriminants::SubscribeTables => verify(
+                    r#"{
+                        "$type": "subscribe_tables"
+                    }"#,
+                    test_data::subscribe_tables(),
+                ),
+                InputDiscriminants::UnsubscribeTables =>verify(
+                    r#"{
+                        "$type": "unsubscribe_tables"
+                    }"#,
+                    test_data::unsubscribe_tables(),
+                ),
+                InputDiscriminants::AddTable => verify(
+                    r#"{
+                        "$type": "add_table",
+                        "after_id": -1,
+                        "table": {
+                          "name": "table - Foo Fighters",
+                          "participants": 4
+                        }
+                    }"#,
+                    test_data::add_table(),
+                ),
+                InputDiscriminants::UpdateTable => verify(
+                    r#"{
+                        "$type": "update_table",
+                        "table": {
+                          "id": 3,
+                          "name": "table - Foo Fighters",
+                          "participants": 4
+                        }
+                    }"#,
+                    test_data::update_table(),
+                ),
+                InputDiscriminants::RemoveTable => verify(
+                    r#"{
+                        "$type": "remove_table",
+                        "id": 3
+                    }"#,
+                    test_data::remove_table(),
+                ),
+            }
         }
     }
 
     #[test]
     fn provide_correct_out_encoders() {
-        let outputs = HashMap::from([
-            (
-                test_data::login_successful_user(),
-                json!({
-                    "$type": "login_successful",
-                    "user_type": "user"
-                }),
-            ),
-            (
-                test_data::login_successful_admin(),
-                json!({
-                    "$type": "login_successful",
-                    "user_type": "admin"
-                }),
-            ),
-            (
-                test_data::login_successful_admin(),
-                json!({
-                    "$type": "login_successful",
-                    "user_type": "admin"
-                }),
-            ),
-            (
-                test_data::login_failed(),
-                json!({
-                    "$type": "login_failed"
-                }),
-            ),
-            (
-                test_data::pong(),
-                json!({
-                    "$type": "pong",
-                    "seq": 12345
-                }),
-            ),
-            (
-                test_data::table_list(),
-                json!({
-                    "$type": "table_list",
-                    "tables": [
-                      {
-                        "id": 1,
-                        "name": "table - James Bond",
-                        "participants": 7
-                      }, {
-                        "id": 2,
-                        "name": "table - Mission Impossible",
-                        "participants": 9
-                      }
-                    ]
-                  }),
-            ),
-            (
-                test_data::table_added(),
-                json!({
-                    "$type": "table_added",
-                    "after_id": -1,
-                    "table": {
-                        "id": 3,
-                        "name": "table - Foo Fighters",
-                        "participants": 4
-                    }
-                }),
-            ),
-            (
-                test_data::table_updated(),
-                json!({
-                    "$type": "table_updated",
-                    "table": {
-                        "id": 3,
-                        "name": "table - Foo Fighters",
-                        "participants": 4
-                    }
-                }),
-            ),
-            (
-                test_data::table_removed(),
-                json!({
-                    "$type": "table_removed",
-                    "id": 3
-                }),
-            ),
-            (
-                test_data::table_add_failed(),
-                json!({
-                    "$type": "table_add_failed"
-                }),
-            ),
-            (
-                test_data::table_update_failed(),
-                json!({
-                    "$type": "table_update_failed",
-                    "id": 99999
-                }),
-            ),
-            (
-                test_data::table_remove_failed(),
-                json!({
-                    "$type": "table_remove_failed",
-                    "id": 99999
-                }),
-            ),
-            (
-                test_data::not_authorized(),
-                json!({
-                    "$type": "not_authorized"
-                }),
-            ),
-            (
-                test_data::not_authenticated(),
-                json!({
-                    "$type": "not_authenticated"
-                }),
-            ),
-            (
-                test_data::invalid_message(),
-                json!({
-                    "$type": "invalid_message"
-                }),
-            ),
-        ]);
 
-        for (output, expected_value) in outputs {
+        fn verify(output: Output, expected_value: Value) {
             let actual_string = serde_json::to_string(&output).expect("Failed to serialize output");
             let actual_value: Value = serde_json::from_str(&actual_string).expect("Failed to deserialize to JSON");
             assert_eq!(actual_value, expected_value);
+        }
+
+        for output_discriminant in OutputDiscriminants::iter() {
+            match output_discriminant {
+                OutputDiscriminants::LoginSuccessful => {
+                    verify(
+                        test_data::login_successful_user(),
+                        json!({
+                            "$type": "login_successful",
+                            "user_type": "user"
+                        }),
+                    );
+                    verify(
+                        test_data::login_successful_admin(),
+                        json!({
+                            "$type": "login_successful",
+                            "user_type": "admin"
+                        }),
+                    );
+                },
+                OutputDiscriminants::LoginFailed => verify(
+                    test_data::login_failed(),
+                    json!({
+                        "$type": "login_failed"
+                    }),
+                ),
+                OutputDiscriminants::Pong => verify(
+                    test_data::pong(),
+                    json!({
+                        "$type": "pong",
+                        "seq": 12345
+                    }),
+                ),
+                OutputDiscriminants::TableList => verify(
+                    test_data::table_list(),
+                    json!({
+                        "$type": "table_list",
+                        "tables": [
+                          {
+                            "id": 1,
+                            "name": "table - James Bond",
+                            "participants": 7
+                          }, {
+                            "id": 2,
+                            "name": "table - Mission Impossible",
+                            "participants": 9
+                          }
+                        ]
+                      }),
+                ),
+                OutputDiscriminants::TableAdded => verify(
+                    test_data::table_added(),
+                    json!({
+                        "$type": "table_added",
+                        "after_id": -1,
+                        "table": {
+                            "id": 3,
+                            "name": "table - Foo Fighters",
+                            "participants": 4
+                        }
+                    }),
+                ),
+                OutputDiscriminants::TableUpdated => verify(
+                    test_data::table_updated(),
+                    json!({
+                        "$type": "table_updated",
+                        "table": {
+                            "id": 3,
+                            "name": "table - Foo Fighters",
+                            "participants": 4
+                        }
+                    }),
+                ),
+                OutputDiscriminants::TableRemoved => verify(
+                    test_data::table_removed(),
+                    json!({
+                        "$type": "table_removed",
+                        "id": 3
+                    }),
+                ),
+                OutputDiscriminants::TableAddFailed => verify(
+                    test_data::table_add_failed(),
+                    json!({
+                        "$type": "table_add_failed"
+                    }),
+                ),
+                OutputDiscriminants::TableUpdateFailed => verify(
+                    test_data::table_update_failed(),
+                    json!({
+                        "$type": "table_update_failed",
+                        "id": 99999
+                    }),
+                ),
+                OutputDiscriminants::TableRemoveFailed => verify(
+                    test_data::table_remove_failed(),
+                    json!({
+                        "$type": "table_remove_failed",
+                        "id": 99999
+                    }),
+                ),
+                OutputDiscriminants::NotAuthorized => verify(
+                    test_data::not_authorized(),
+                    json!({
+                        "$type": "not_authorized"
+                    }),
+                ),
+                OutputDiscriminants::NotAuthenticated => verify(
+                    test_data::not_authenticated(),
+                    json!({
+                        "$type": "not_authenticated"
+                    }),
+                ),
+                OutputDiscriminants::InvalidMessage => verify(
+                    test_data::invalid_message(),
+                    json!({
+                        "$type": "invalid_message"
+                    }),
+                ),
+            }
         }
     }
 
