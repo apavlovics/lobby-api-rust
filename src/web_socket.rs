@@ -2,7 +2,9 @@ use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use serde_json::Error as SerdeError;
-use warp::ws::{Message, WebSocket};
+use std::net::SocketAddr;
+use warp::Filter;
+use warp::ws::{Message, WebSocket, Ws};
 
 use crate::lobby::SharedLobby;
 use crate::protocol::{Input, Output};
@@ -10,7 +12,29 @@ use crate::service::{ClientId, ClientSessionAction, self};
 use crate::service::ClientSessionAction::*;
 use crate::session::SharedSessions;
 
-pub async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: SharedLobby) {
+pub async fn run(address: impl Into<SocketAddr>) {
+
+    // Keep track of all connected clients
+    let sessions = SharedSessions::new();
+    let sessions = warp::any().map(move || sessions.clone());
+
+    // Keep track of the lobby
+    let lobby = SharedLobby::prepopulated();
+    let lobby = warp::any().map(move || lobby.clone());
+
+    let routes = warp::path("lobby_api")
+        .and(warp::ws())
+        .and(sessions)
+        .and(lobby)
+        .map(|ws: Ws, sessions: SharedSessions, lobby: SharedLobby| {
+            ws.on_upgrade(move |ws| handle_connect(ws, sessions, lobby))
+        });
+
+    // Start WebSocket server and await indenifitely
+    warp::serve(routes).run(address).await;
+}
+
+async fn handle_connect(ws: WebSocket, sessions: SharedSessions, lobby: SharedLobby) {
     let client_id = ClientId::new();
     debug!("Connected client {:?}", client_id);
 
