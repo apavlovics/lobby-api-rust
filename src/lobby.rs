@@ -102,15 +102,14 @@ impl SharedLobby {
 #[cfg(test)]
 mod tests {
 
-    use crate::protocol::TableId;
-    use crate::protocol::test_data::table_to_add_foo_fighters;
+    use crate::protocol::{TableId, test_data};
 
     use super::Lobby;
 
     #[test]
     fn add_table_in_front() {
         let mut lobby = Lobby::prepopulated();
-        let result = lobby.add_table(TableId::ABSENT, table_to_add_foo_fighters());
+        let result = lobby.add_table(TableId::ABSENT, test_data::table_to_add_foo_fighters());
 
         let added_table = result.expect("Success result expected");
         let first_table = lobby.tables.first().expect("First table must be present");
