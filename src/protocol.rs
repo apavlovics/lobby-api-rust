@@ -110,7 +110,7 @@ mod tests {
     use serde_json::{Value, json};
     use strum::IntoEnumIterator;
 
-    use super::{Input, Output, OutputDiscriminants, InputDiscriminants};
+    use super::{Input, InputDiscriminants, Output, OutputDiscriminants, test_data};
 
     #[test]
     fn provide_correct_input_decoders() {
@@ -312,164 +312,165 @@ mod tests {
             }
         }
     }
+}
 
-    mod test_data {
+#[cfg(test)]
+pub mod test_data {
 
-        use crate::protocol::*;
-        use crate::protocol::Input::*;
-        use crate::protocol::Output::*;
+    use super::*;
+    use super::Input::*;
+    use super::Output::*;
 
-        // Common
+    // Common
 
-        const TABLE_ID_INVALID: TableId = TableId(99999);
+    const TABLE_ID_INVALID: TableId = TableId(99999);
 
-        fn table_james_bond() -> Table {
-            Table {
-                id: TableId(1),
-                name: TableName(String::from("table - James Bond")),
-                participants: 7,
-            }
+    fn table_james_bond() -> Table {
+        Table {
+            id: TableId(1),
+            name: TableName(String::from("table - James Bond")),
+            participants: 7,
         }
+    }
 
-        fn table_mission_impossible() -> Table {
-            Table {
-                id: TableId(2),
-                name: TableName(String::from("table - Mission Impossible")),
-                participants: 9,
-            }
+    fn table_mission_impossible() -> Table {
+        Table {
+            id: TableId(2),
+            name: TableName(String::from("table - Mission Impossible")),
+            participants: 9,
         }
+    }
 
-        fn table_foo_fighters() -> Table {
-            Table {
-                id: TableId(3),
-                name: TableName(String::from("table - Foo Fighters")),
-                participants: 4,
-            }
+    fn table_foo_fighters() -> Table {
+        Table {
+            id: TableId(3),
+            name: TableName(String::from("table - Foo Fighters")),
+            participants: 4,
         }
+    }
 
-        fn table_to_add_foo_fighters() -> TableToAdd {
-            TableToAdd {
-                name: TableName(String::from("table - Foo Fighters")),
-                participants: 4,
-            }
+    pub fn table_to_add_foo_fighters() -> TableToAdd {
+        TableToAdd {
+            name: TableName(String::from("table - Foo Fighters")),
+            participants: 4,
         }
+    }
 
-        // Input
+    // Input
 
-        pub fn login() -> Input {
-            Login {
-                username: Username(String::from("user")),
-                password: Password(String::from("pass")),
-            }
+    pub fn login() -> Input {
+        Login {
+            username: Username(String::from("user")),
+            password: Password(String::from("pass")),
         }
+    }
 
-        pub fn ping() -> Input {
-            Ping {
-                seq: Seq(12345),
-            }
+    pub fn ping() -> Input {
+        Ping {
+            seq: Seq(12345),
         }
+    }
 
-        pub fn subscribe_tables() -> Input {
-            SubscribeTables
+    pub fn subscribe_tables() -> Input {
+        SubscribeTables
+    }
+
+    pub fn unsubscribe_tables() -> Input {
+        UnsubscribeTables
+    }
+
+    pub fn add_table() -> Input {
+        AddTable {
+            after_id: TableId::ABSENT,
+            table: table_to_add_foo_fighters(),
         }
+    }
 
-        pub fn unsubscribe_tables() -> Input {
-            UnsubscribeTables
+    pub fn update_table() -> Input {
+        UpdateTable {
+            table: table_foo_fighters(),
         }
+    }
 
-        pub fn add_table() -> Input {
-            AddTable {
-                after_id: TableId::ABSENT,
-                table: table_to_add_foo_fighters(),
-            }
+    pub fn remove_table() -> Input {
+        RemoveTable {
+            id: TableId(3),
         }
+    }
 
-        pub fn update_table() -> Input {
-            UpdateTable {
-                table: table_foo_fighters(),
-            }
+    // Output
+
+    pub fn login_successful_user() -> Output {
+        LoginSuccessful {
+            user_type: UserType::User,
         }
+    }
 
-        pub fn remove_table() -> Input {
-            RemoveTable {
-                id: TableId(3),
-            }
+    pub fn login_successful_admin() -> Output {
+        LoginSuccessful {
+            user_type: UserType::Admin,
         }
+    }
 
-        // Output
+    pub fn login_failed() -> Output {
+        LoginFailed
+    }
 
-        pub fn login_successful_user() -> Output {
-            LoginSuccessful {
-                user_type: UserType::User,
-            }
+    pub fn pong() -> Output {
+        Pong {
+            seq: Seq(12345),
         }
+    }
 
-        pub fn login_successful_admin() -> Output {
-            LoginSuccessful {
-                user_type: UserType::Admin,
-            }
+    pub fn table_list() -> Output {
+        TableList {
+            tables: vec![
+                table_james_bond(),
+                table_mission_impossible(),
+            ],
         }
+    }
 
-        pub fn login_failed() -> Output {
-            LoginFailed
+    pub fn table_added() -> Output {
+        TableAdded {
+            after_id: TableId::ABSENT,
+            table: table_foo_fighters(),
         }
+    }
 
-        pub fn pong() -> Output {
-            Pong {
-                seq: Seq(12345),
-            }
+    pub fn table_updated() -> Output {
+        TableUpdated {
+            table: table_foo_fighters(),
         }
+    }
 
-        pub fn table_list() -> Output {
-            TableList {
-                tables: vec![
-                    table_james_bond(),
-                    table_mission_impossible(),
-                ],
-            }
+    pub fn table_removed() -> Output {
+        TableRemoved {
+            id: TableId(3),
         }
+    }
 
-        pub fn table_added() -> Output {
-            TableAdded {
-                after_id: TableId::ABSENT,
-                table: table_foo_fighters(),
-            }
-        }
+    pub fn table_add_failed() -> Output {
+        TableAddFailed
+    }
 
-        pub fn table_updated() -> Output {
-            TableUpdated {
-                table: table_foo_fighters(),
-            }
-        }
+    pub fn table_update_failed() -> Output {
+        TableUpdateFailed { id: TABLE_ID_INVALID }
+    }
 
-        pub fn table_removed() -> Output {
-            TableRemoved {
-                id: TableId(3),
-            }
-        }
+    pub fn table_remove_failed() -> Output {
+        TableRemoveFailed { id: TABLE_ID_INVALID }
+    }
 
-        pub fn table_add_failed() -> Output {
-            TableAddFailed
-        }
+    pub fn not_authorized() -> Output {
+        NotAuthorized
+    }
 
-        pub fn table_update_failed() -> Output {
-            TableUpdateFailed { id: TABLE_ID_INVALID }
-        }
+    pub fn not_authenticated() -> Output {
+        NotAuthenticated
+    }
 
-        pub fn table_remove_failed() -> Output {
-            TableRemoveFailed { id: TABLE_ID_INVALID }
-        }
-
-        pub fn not_authorized() -> Output {
-            NotAuthorized
-        }
-
-        pub fn not_authenticated() -> Output {
-            NotAuthenticated
-        }
-
-        pub fn invalid_message() -> Output {
-            InvalidMessage
-        }
+    pub fn invalid_message() -> Output {
+        InvalidMessage
     }
 }

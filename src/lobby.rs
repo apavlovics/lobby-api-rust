@@ -98,3 +98,20 @@ impl SharedLobby {
         self.lobby.write().await.remove_table(id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::protocol::TableId;
+    use crate::protocol::test_data::table_to_add_foo_fighters;
+    use super::Lobby;
+
+    #[test]
+    fn add_table_in_front() {
+        let mut lobby = Lobby::prepopulated();
+        let result = lobby.add_table(TableId::ABSENT, table_to_add_foo_fighters());
+
+        // TODO Complete implementation
+        assert!(result.is_ok());
+    }
+}
