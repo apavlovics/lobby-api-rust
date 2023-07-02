@@ -104,6 +104,7 @@ mod tests {
 
     use crate::protocol::TableId;
     use crate::protocol::test_data::table_to_add_foo_fighters;
+
     use super::Lobby;
 
     #[test]
@@ -111,7 +112,8 @@ mod tests {
         let mut lobby = Lobby::prepopulated();
         let result = lobby.add_table(TableId::ABSENT, table_to_add_foo_fighters());
 
-        // TODO Complete implementation
-        assert!(result.is_ok());
+        let added_table = result.expect("Success result expected");
+        let first_table = lobby.tables.first().expect("First table must be present");
+        assert_eq!(&added_table, first_table);
     }
 }
