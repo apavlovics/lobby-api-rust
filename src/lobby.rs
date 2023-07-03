@@ -4,12 +4,12 @@ use tokio::sync::RwLock;
 use crate::protocol::{Table, TableId, TableName, TableToAdd};
 
 /// Represents the lobby that contains ordered tables.
-pub struct Lobby {
+struct Lobby {
     tables: Vec<Table>,
 }
 impl Lobby {
 
-    pub fn prepopulated() -> Self {
+    fn prepopulated() -> Self {
         Lobby {
             tables: vec![
                 Table {
@@ -26,7 +26,7 @@ impl Lobby {
         }
     }
 
-    pub fn add_table(&mut self, after_id: TableId, table_to_add: TableToAdd) -> Result<Table, String> {
+    fn add_table(&mut self, after_id: TableId, table_to_add: TableToAdd) -> Result<Table, String> {
         let table = table_to_add.into_table(TableId::new());
         if after_id == TableId::ABSENT {
             self.tables.insert(0, table.clone());
@@ -44,7 +44,7 @@ impl Lobby {
         }
     }
 
-    pub fn update_table(&mut self, table_to_update: Table) -> Result<Table, String> {
+    fn update_table(&mut self, table_to_update: Table) -> Result<Table, String> {
         match self.tables.iter_mut().find(|table| table.id == table_to_update.id) {
             Some(table) => {
                 table.update_with(table_to_update);
@@ -56,7 +56,7 @@ impl Lobby {
         }
     }
 
-    pub fn remove_table(&mut self, id: TableId) -> Result<TableId, String> {
+    fn remove_table(&mut self, id: TableId) -> Result<TableId, String> {
         match self.tables.iter().position(|table| table.id == id) {
             Some(index) => {
                 self.tables.remove(index);
@@ -69,7 +69,7 @@ impl Lobby {
     }
 }
 
-/// Represents the lobby that is shared among all the clients.
+/// Represents the lobby that can be shared among all the clients.
 #[derive(Clone)]
 pub struct SharedLobby {
     lobby: Arc<RwLock<Lobby>>,
@@ -80,6 +80,10 @@ impl SharedLobby {
         SharedLobby {
             lobby: Arc::from(RwLock::from(Lobby::prepopulated())),
         }
+    }
+
+    pub async fn len(&self) -> usize {
+        self.lobby.read().await.tables.len()
     }
 
     pub async fn read_tables(&self) -> Vec<Table> {
@@ -104,41 +108,41 @@ mod tests {
 
     use crate::protocol::{TableId, test_data};
 
-    use super::Lobby;
+    use super::SharedLobby;
 
-    #[test]
-    fn add_table_in_front() {
+    #[tokio::test]
+    async fn add_table_in_front() {
 
         // given
-        let mut lobby = Lobby::prepopulated();
-        let lobby_len_before = lobby.tables.len();
+        let shared_lobby = SharedLobby::prepopulated();
+        let len_before = shared_lobby.len().await;
 
         // when
-        let result = lobby.add_table(TableId::ABSENT, test_data::table_to_add_foo_fighters());
+        let result = shared_lobby.add_table(TableId::ABSENT, test_data::table_to_add_foo_fighters()).await;
 
         // then
         let added_table = result.expect("Success result expected");
-        let first_table = lobby.tables.first().expect("First table must be present");
-        assert_eq!(&added_table, first_table);
+        let first_table = shared_lobby.lobby.read().await.tables.first().expect("First table must be present").clone();
+        assert_eq!(added_table, first_table);
 
-        let lobby_len_after = lobby.tables.len();
-        assert_eq!(lobby_len_after, lobby_len_before + 1);
+        let len_after = shared_lobby.len().await;
+        assert_eq!(len_after, len_before + 1);
     }
 
-    #[test]
-    fn not_add_table_when_after_id_does_not_exist() {
+    #[tokio::test]
+    async fn not_add_table_when_after_id_does_not_exist() {
 
         // given
-        let mut lobby = Lobby::prepopulated();
-        let lobby_len_before = lobby.tables.len();
+        let shared_lobby = SharedLobby::prepopulated();
+        let len_before = shared_lobby.len().await;
 
         // when
-        let result = lobby.add_table(test_data::TABLE_ID_INVALID, test_data::table_to_add_foo_fighters());
+        let result = shared_lobby.add_table(test_data::TABLE_ID_INVALID, test_data::table_to_add_foo_fighters()).await;
 
         // then
         assert!(result.is_err(), "Error result expected");
 
-        let lobby_len_after = lobby.tables.len();
-        assert_eq!(lobby_len_after, lobby_len_before);
+        let len_after = shared_lobby.len().await;
+        assert_eq!(len_after, len_before);
     }
 }
