@@ -82,10 +82,6 @@ impl SharedLobby {
         }
     }
 
-    pub async fn len(&self) -> usize {
-        self.lobby.read().await.tables.len()
-    }
-
     pub async fn read_tables(&self) -> Vec<Table> {
         self.lobby.read().await.tables.clone()
     }
@@ -106,7 +102,7 @@ impl SharedLobby {
 #[cfg(test)]
 mod tests {
 
-    use crate::protocol::{TableId, test_data};
+    use crate::protocol::{Table, TableId, test_data};
 
     use super::SharedLobby;
 
@@ -121,8 +117,8 @@ mod tests {
         let result = shared_lobby.add_table(TableId::ABSENT, test_data::table_to_add_foo_fighters()).await;
 
         // then
-        let added_table = result.expect("Success result expected");
-        let first_table = shared_lobby.lobby.read().await.tables.first().expect("First table must be present").clone();
+        let added_table = result.expect("Table should be added");
+        let first_table = shared_lobby.read_table(0).await;
         assert_eq!(added_table, first_table);
 
         let len_after = shared_lobby.len().await;
@@ -140,9 +136,23 @@ mod tests {
         let result = shared_lobby.add_table(test_data::TABLE_ID_INVALID, test_data::table_to_add_foo_fighters()).await;
 
         // then
-        assert!(result.is_err(), "Error result expected");
+        assert!(result.is_err(), "Error should be returned");
 
         let len_after = shared_lobby.len().await;
         assert_eq!(len_after, len_before);
+    }
+
+    impl SharedLobby {
+
+        async fn len(&self) -> usize {
+            self.lobby.read().await.tables.len()
+        }
+
+        async fn read_table(&self, index: usize) -> Table {
+            self.lobby.read().await.tables
+                .get(index)
+                .unwrap_or_else(|| panic!("Table at index {} should exist", index))
+                .clone()
+        }
     }
 }
