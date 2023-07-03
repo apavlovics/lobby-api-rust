@@ -332,7 +332,7 @@ pub mod test_data {
 
     // Common
 
-    const TABLE_ID_INVALID: TableId = TableId(99999);
+    pub const TABLE_ID_INVALID: TableId = TableId(99999);
 
     fn table_james_bond() -> Table {
         Table {

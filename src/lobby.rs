@@ -5,7 +5,7 @@ use crate::protocol::{Table, TableId, TableName, TableToAdd};
 
 /// Represents the lobby that contains ordered tables.
 pub struct Lobby {
-    pub tables: Vec<Table>,
+    tables: Vec<Table>,
 }
 impl Lobby {
 
@@ -108,11 +108,37 @@ mod tests {
 
     #[test]
     fn add_table_in_front() {
+
+        // given
         let mut lobby = Lobby::prepopulated();
+        let lobby_len_before = lobby.tables.len();
+
+        // when
         let result = lobby.add_table(TableId::ABSENT, test_data::table_to_add_foo_fighters());
 
+        // then
         let added_table = result.expect("Success result expected");
         let first_table = lobby.tables.first().expect("First table must be present");
         assert_eq!(&added_table, first_table);
+
+        let lobby_len_after = lobby.tables.len();
+        assert_eq!(lobby_len_after, lobby_len_before + 1);
+    }
+
+    #[test]
+    fn not_add_table_when_after_id_does_not_exist() {
+
+        // given
+        let mut lobby = Lobby::prepopulated();
+        let lobby_len_before = lobby.tables.len();
+
+        // when
+        let result = lobby.add_table(test_data::TABLE_ID_INVALID, test_data::table_to_add_foo_fighters());
+
+        // then
+        assert!(result.is_err(), "Error result expected");
+
+        let lobby_len_after = lobby.tables.len();
+        assert_eq!(lobby_len_after, lobby_len_before);
     }
 }
