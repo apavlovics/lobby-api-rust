@@ -8,18 +8,24 @@ pub struct Seq(u64);
 
 #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Username(pub String);
+pub struct Username(String);
+impl Username {
+    pub fn as_str(&self) -> &str { &self.0 }
+}
 
 #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Password(pub String);
+pub struct Password(String);
+impl Password {
+    pub fn as_str(&self) -> &str { &self.0 }
+}
 
 /// The global unique table id generator.
 static NEXT_TABLE_ID: AtomicIsize = AtomicIsize::new(1);
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TableId(pub isize);
+pub struct TableId(isize);
 impl TableId {
 
     pub fn new() -> Self {
@@ -32,7 +38,10 @@ impl TableId {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TableName(pub String);
+pub struct TableName(String);
+impl TableName {
+    pub fn new(value: String) -> Self { Self(value) }
+}
 
 #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TableToAdd {

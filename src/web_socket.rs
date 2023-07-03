@@ -12,6 +12,7 @@ use crate::service::{ClientId, ClientSessionAction, self};
 use crate::service::ClientSessionAction::*;
 use crate::session::SharedSessions;
 
+/// Starts WebSocket server at the given address and awaits indenifitely.
 pub async fn run(address: impl Into<SocketAddr>) {
 
     // Keep track of all connected clients
@@ -29,8 +30,6 @@ pub async fn run(address: impl Into<SocketAddr>) {
         .map(|ws: Ws, sessions: SharedSessions, lobby: SharedLobby| {
             ws.on_upgrade(move |ws| handle_connect(ws, sessions, lobby))
         });
-
-    // Start WebSocket server and await indenifitely
     warp::serve(routes).run(address).await;
 }
 

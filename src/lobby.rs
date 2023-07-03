@@ -14,12 +14,12 @@ impl Lobby {
             tables: vec![
                 Table {
                     id: TableId::new(),
-                    name: TableName(String::from("table - James Bond")),
+                    name: TableName::new(String::from("table - James Bond")),
                     participants: 7,
                 },
                 Table {
                     id: TableId::new(),
-                    name: TableName(String::from("table - Mission Impossible")),
+                    name: TableName::new(String::from("table - Mission Impossible")),
                     participants: 9,
                 },
             ],
