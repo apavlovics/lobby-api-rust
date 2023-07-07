@@ -122,7 +122,27 @@ mod tests {
         assert_eq!(added_table, first_table);
 
         let len_after = shared_lobby.len().await;
-        assert_eq!(len_after, len_before + 1);
+        assert_eq!(len_after, len_before + 1, "Number of tables should increase by one");
+    }
+
+    #[tokio::test]
+    async fn add_table_after_another_table() {
+
+        // given
+        let shared_lobby = SharedLobby::prepopulated();
+        let len_before = shared_lobby.len().await;
+        let first_table = shared_lobby.read_table(0).await;
+
+        // when
+        let result = shared_lobby.add_table(first_table.id, test_data::table_to_add_foo_fighters()).await;
+
+        // then
+        let added_table = result.expect("Table should be added");
+        let second_table = shared_lobby.read_table(1).await;
+        assert_eq!(added_table, second_table);
+
+        let len_after = shared_lobby.len().await;
+        assert_eq!(len_after, len_before + 1, "Number of tables should increase by one");
     }
 
     #[tokio::test]
@@ -136,10 +156,10 @@ mod tests {
         let result = shared_lobby.add_table(test_data::TABLE_ID_INVALID, test_data::table_to_add_foo_fighters()).await;
 
         // then
-        assert!(result.is_err(), "Error should be returned");
+        assert!(result.is_err(), "Table should not be added");
 
         let len_after = shared_lobby.len().await;
-        assert_eq!(len_after, len_before);
+        assert_eq!(len_after, len_before, "Number of tables should remain the same");
     }
 
     impl SharedLobby {
