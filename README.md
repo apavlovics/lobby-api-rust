@@ -4,6 +4,18 @@ This sample application exposes a server for a JSON-based Lobby API over WebSock
 
 The application is implemented in Rust using asynchronous Tokio stack.
 
+## Code Formatting
+
+The project uses [Rustfmt](https://github.com/rust-lang/rustfmt) for code formatting.
+
+To reformat all files, execute:
+
+    cargo fmt
+
+To check that all files are correctly formatted, execute:
+
+    cargo fmt --check
+
 ## Testing
 
 To test the application, execute:
