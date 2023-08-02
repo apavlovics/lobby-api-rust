@@ -1,9 +1,12 @@
-use std::sync::Arc;
 use std::collections::HashMap;
-use tokio::sync::RwLock;
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::RwLock;
 
-use crate::{protocol::{Output, UserType}, service::ClientId};
+use crate::{
+    protocol::{Output, UserType},
+    service::ClientId,
+};
 
 /// Represents the sender, which can be used to output messages to the client.
 pub type ClientSender = UnboundedSender<Output>;
@@ -22,7 +25,6 @@ pub struct BroadcastResult {
     pub failure_client_ids: Vec<ClientId>,
 }
 impl BroadcastResult {
-
     pub fn new() -> Self {
         BroadcastResult {
             success_client_ids: vec![],
@@ -37,7 +39,6 @@ pub struct SharedSessions {
     sessions: Arc<RwLock<HashMap<ClientId, Session>>>,
 }
 impl SharedSessions {
-
     pub fn new() -> Self {
         SharedSessions {
             sessions: Arc::default(),
@@ -61,40 +62,38 @@ impl SharedSessions {
     /// Sends the output message to the given client.
     pub async fn send(&self, client_id: ClientId, output: Output) -> Result<(), String> {
         match self.sessions.read().await.get(&client_id) {
-            Some(session) => {
-                session.client_sender.send(output).map_err(|e| e.to_string())
-            }
-            None => {
-                Self::no_session(client_id)
-            }
+            Some(session) => session.client_sender.send(output).map_err(|e| e.to_string()),
+            None => Self::no_session(client_id),
         }
     }
 
     /// Broadcasts the output message to all subscribed clients.
     pub async fn broadcast(&self, output: Output) -> BroadcastResult {
-        self.sessions.read().await
+        self.sessions
+            .read()
+            .await
             .values()
             .filter_map(|session| {
                 if session.subscribed {
                     Some(
-                        session.client_sender
+                        session
+                            .client_sender
                             .send(output.clone())
                             .map(|_| session.client_id)
-                            .map_err(|_| session.client_id)
+                            .map_err(|_| session.client_id),
                     )
                 } else {
                     None
                 }
-            }).fold(BroadcastResult::new(), |mut acc, result| {
-                match result {
-                    Ok(client_id) => {
-                        acc.success_client_ids.push(client_id);
-                        acc
-                    }
-                    Err(client_id) => {
-                        acc.failure_client_ids.push(client_id);
-                        acc
-                    }
+            })
+            .fold(BroadcastResult::new(), |mut acc, result| match result {
+                Ok(client_id) => {
+                    acc.success_client_ids.push(client_id);
+                    acc
+                }
+                Err(client_id) => {
+                    acc.failure_client_ids.push(client_id);
+                    acc
                 }
             })
     }
@@ -110,21 +109,21 @@ impl SharedSessions {
     pub async fn write_user_type(&self, client_id: ClientId, user_type: Option<UserType>) -> Result<(), String> {
         self.write(client_id, |session| {
             session.user_type = user_type;
-        }).await
+        })
+        .await
     }
 
     pub async fn write_subscribed(&self, client_id: ClientId, subscribed: bool) -> Result<(), String> {
         self.write(client_id, |session| {
             session.subscribed = subscribed;
-        }).await
+        })
+        .await
     }
 
-    async fn write<F>(
-        &self,
-        client_id: ClientId,
-        f: F,
-    ) -> Result<(), String>
-    where F: FnOnce(&mut Session) -> () {
+    async fn write<F>(&self, client_id: ClientId, f: F) -> Result<(), String>
+    where
+        F: FnOnce(&mut Session) -> (),
+    {
         if let Some(session) = self.sessions.write().await.get_mut(&client_id) {
             f(session);
             Ok(())

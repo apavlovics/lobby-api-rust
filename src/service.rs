@@ -1,10 +1,10 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::lobby::SharedLobby;
-use crate::service::ClientSessionAction::*;
-use crate::protocol::{Input, Output, UserType, Username, Password, Seq, TableId, TableToAdd, Table};
 use crate::protocol::Input::*;
 use crate::protocol::Output::*;
+use crate::protocol::{Input, Output, Password, Seq, Table, TableId, TableToAdd, UserType, Username};
+use crate::service::ClientSessionAction::*;
 
 /// The action to perform to the client session upon processing the input message.
 pub enum ClientSessionAction {
@@ -27,7 +27,6 @@ static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct ClientId(pub usize);
 impl ClientId {
-
     pub fn new() -> Self {
         ClientId(NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed))
     }
@@ -48,7 +47,7 @@ fn process_unathenticated(input: Input) -> ProcessResult {
             output: Some(NotAuthenticated),
             subscription_output: None,
             action: DoNothing,
-        }
+        },
     }
 }
 
@@ -58,9 +57,7 @@ async fn process_user(input: Input, lobby: &SharedLobby) -> ProcessResult {
         Login { username, password } => login(username, password),
         SubscribeTables => subscribe(lobby).await,
         UnsubscribeTables => unsubscribe(),
-        AddTable { .. } |
-        UpdateTable { .. } |
-        RemoveTable { .. } => ProcessResult {
+        AddTable { .. } | UpdateTable { .. } | RemoveTable { .. } => ProcessResult {
             output: Some(NotAuthorized),
             subscription_output: None,
             action: DoNothing,

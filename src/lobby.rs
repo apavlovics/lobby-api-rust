@@ -8,7 +8,6 @@ struct Lobby {
     tables: Vec<Table>,
 }
 impl Lobby {
-
     fn prepopulated() -> Self {
         Lobby {
             tables: vec![
@@ -37,9 +36,7 @@ impl Lobby {
                     self.tables.insert(index + 1, table.clone());
                     Ok(table)
                 }
-                None => {
-                    Err(format!("Cannot find table {:?}, after which another table should be added", after_id))
-                }
+                None => Err(format!("Cannot find table {:?}, after which another table should be added", after_id)),
             }
         }
     }
@@ -50,9 +47,7 @@ impl Lobby {
                 table.update_with(table_to_update);
                 Ok(table.clone())
             }
-            None => {
-                Err(format!("Cannot find table {:?}, which should be updated", table_to_update.id))
-            },
+            None => Err(format!("Cannot find table {:?}, which should be updated", table_to_update.id)),
         }
     }
 
@@ -62,9 +57,7 @@ impl Lobby {
                 self.tables.remove(index);
                 Ok(id)
             }
-            None => {
-                Err(format!("Cannot find table {:?}, which should be removed", id))
-            }
+            None => Err(format!("Cannot find table {:?}, which should be removed", id)),
         }
     }
 }
@@ -75,7 +68,6 @@ pub struct SharedLobby {
     lobby: Arc<RwLock<Lobby>>,
 }
 impl SharedLobby {
-
     pub fn prepopulated() -> Self {
         SharedLobby {
             lobby: Arc::from(RwLock::from(Lobby::prepopulated())),
@@ -108,13 +100,14 @@ mod tests {
 
     #[tokio::test]
     async fn add_table_in_front() {
-
         // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
         // when
-        let result = shared_lobby.add_table(TableId::ABSENT, test_data::table_to_add_foo_fighters()).await;
+        let result = shared_lobby
+            .add_table(TableId::ABSENT, test_data::table_to_add_foo_fighters())
+            .await;
 
         // then
         let added_table = result.expect("Table should be added");
@@ -127,14 +120,15 @@ mod tests {
 
     #[tokio::test]
     async fn add_table_after_another_table() {
-
         // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
         let first_table = shared_lobby.read_table(0).await;
 
         // when
-        let result = shared_lobby.add_table(first_table.id, test_data::table_to_add_foo_fighters()).await;
+        let result = shared_lobby
+            .add_table(first_table.id, test_data::table_to_add_foo_fighters())
+            .await;
 
         // then
         let added_table = result.expect("Table should be added");
@@ -147,13 +141,14 @@ mod tests {
 
     #[tokio::test]
     async fn not_add_table_when_after_id_does_not_exist() {
-
         // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
         // when
-        let result = shared_lobby.add_table(test_data::TABLE_ID_INVALID, test_data::table_to_add_foo_fighters()).await;
+        let result = shared_lobby
+            .add_table(test_data::TABLE_ID_INVALID, test_data::table_to_add_foo_fighters())
+            .await;
 
         // then
         assert!(result.is_err(), "Table should not be added");
@@ -164,7 +159,6 @@ mod tests {
 
     #[tokio::test]
     async fn update_table() {
-
         // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
@@ -192,7 +186,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_update_table_when_table_id_does_not_exist() {
-
         // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
@@ -214,7 +207,6 @@ mod tests {
 
     #[tokio::test]
     async fn remove_table() {
-
         // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
@@ -235,7 +227,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_remove_table_when_table_id_does_not_exist() {
-
         // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
@@ -251,13 +242,15 @@ mod tests {
     }
 
     impl SharedLobby {
-
         async fn len(&self) -> usize {
             self.lobby.read().await.tables.len()
         }
 
         async fn read_table(&self, index: usize) -> Table {
-            self.lobby.read().await.tables
+            self.lobby
+                .read()
+                .await
+                .tables
                 .get(index)
                 .unwrap_or_else(|| panic!("Table at index {} should exist", index))
                 .clone()

@@ -1,5 +1,5 @@
-use std::sync::atomic::{Ordering, AtomicIsize};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicIsize, Ordering};
 use strum_macros::{EnumDiscriminants, EnumIter};
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -10,14 +10,18 @@ pub struct Seq(u64);
 #[serde(transparent)]
 pub struct Username(String);
 impl Username {
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Password(String);
 impl Password {
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// The global unique table id generator.
@@ -27,7 +31,6 @@ static NEXT_TABLE_ID: AtomicIsize = AtomicIsize::new(1);
 #[serde(transparent)]
 pub struct TableId(isize);
 impl TableId {
-
     pub fn new() -> Self {
         TableId(NEXT_TABLE_ID.fetch_add(1, Ordering::Relaxed))
     }
@@ -40,7 +43,9 @@ impl TableId {
 #[serde(transparent)]
 pub struct TableName(String);
 impl TableName {
-    pub fn new(value: String) -> Self { Self(value) }
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -49,7 +54,6 @@ pub struct TableToAdd {
     pub participants: u64,
 }
 impl TableToAdd {
-
     pub fn into_table(self, id: TableId) -> Table {
         Table {
             id,
@@ -66,7 +70,6 @@ pub struct Table {
     pub participants: u64,
 }
 impl Table {
-
     /// Updates all fields of this table with fields of the other table, excluding id.
     pub fn update_with(&mut self, other: Table) {
         self.name = other.name;
@@ -100,7 +103,7 @@ pub enum Input {
 pub enum Output {
     LoginSuccessful { user_type: UserType },
     LoginFailed,
-    Pong { seq : Seq },
+    Pong { seq: Seq },
     TableList { tables: Vec<Table> },
     TableAdded { after_id: TableId, table: Table },
     TableUpdated { table: Table },
@@ -116,14 +119,13 @@ pub enum Output {
 #[cfg(test)]
 mod tests {
 
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
     use strum::IntoEnumIterator;
 
-    use super::{Input, InputDiscriminants, Output, OutputDiscriminants, test_data};
+    use super::{test_data, Input, InputDiscriminants, Output, OutputDiscriminants};
 
     #[test]
     fn provide_correct_input_decoders() {
-
         fn verify(str: &str, expected_input: Input) {
             let actual_input: Input = serde_json::from_str(str).expect("Failed to deserialize input");
             assert_eq!(actual_input, expected_input);
@@ -153,7 +155,7 @@ mod tests {
                     }"#,
                     test_data::subscribe_tables(),
                 ),
-                InputDiscriminants::UnsubscribeTables =>verify(
+                InputDiscriminants::UnsubscribeTables => verify(
                     r#"{
                         "$type": "unsubscribe_tables"
                     }"#,
@@ -194,7 +196,6 @@ mod tests {
 
     #[test]
     fn provide_correct_output_encoders() {
-
         fn verify(output: Output, expected_value: Value) {
             let actual_string = serde_json::to_string(&output).expect("Failed to serialize output");
             let actual_value: Value = serde_json::from_str(&actual_string).expect("Failed to deserialize to JSON");
@@ -219,7 +220,7 @@ mod tests {
                             "user_type": "admin"
                         }),
                     );
-                },
+                }
                 OutputDiscriminants::LoginFailed => verify(
                     test_data::login_failed(),
                     json!({
@@ -236,19 +237,19 @@ mod tests {
                 OutputDiscriminants::TableList => verify(
                     test_data::table_list(),
                     json!({
-                        "$type": "table_list",
-                        "tables": [
-                          {
-                            "id": 1,
-                            "name": "table - James Bond",
-                            "participants": 7
-                          }, {
-                            "id": 2,
-                            "name": "table - Mission Impossible",
-                            "participants": 9
-                          }
-                        ]
-                      }),
+                      "$type": "table_list",
+                      "tables": [
+                        {
+                          "id": 1,
+                          "name": "table - James Bond",
+                          "participants": 7
+                        }, {
+                          "id": 2,
+                          "name": "table - Mission Impossible",
+                          "participants": 9
+                        }
+                      ]
+                    }),
                 ),
                 OutputDiscriminants::TableAdded => verify(
                     test_data::table_added(),
@@ -326,9 +327,9 @@ mod tests {
 #[cfg(test)]
 pub mod test_data {
 
-    use super::*;
     use super::Input::*;
     use super::Output::*;
+    use super::*;
 
     // Common
 
@@ -375,9 +376,7 @@ pub mod test_data {
     }
 
     pub fn ping() -> Input {
-        Ping {
-            seq: Seq(12345),
-        }
+        Ping { seq: Seq(12345) }
     }
 
     pub fn subscribe_tables() -> Input {
@@ -402,9 +401,7 @@ pub mod test_data {
     }
 
     pub fn remove_table() -> Input {
-        RemoveTable {
-            id: TableId(3),
-        }
+        RemoveTable { id: TableId(3) }
     }
 
     // Output
@@ -426,17 +423,12 @@ pub mod test_data {
     }
 
     pub fn pong() -> Output {
-        Pong {
-            seq: Seq(12345),
-        }
+        Pong { seq: Seq(12345) }
     }
 
     pub fn table_list() -> Output {
         TableList {
-            tables: vec![
-                table_james_bond(),
-                table_mission_impossible(),
-            ],
+            tables: vec![table_james_bond(), table_mission_impossible()],
         }
     }
 
@@ -454,9 +446,7 @@ pub mod test_data {
     }
 
     pub fn table_removed() -> Output {
-        TableRemoved {
-            id: TableId(3),
-        }
+        TableRemoved { id: TableId(3) }
     }
 
     pub fn table_add_failed() -> Output {
