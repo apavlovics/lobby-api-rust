@@ -334,7 +334,7 @@ pub mod test_data {
 
     pub const TABLE_ID_INVALID: TableId = TableId(99999);
 
-    fn table_james_bond() -> Table {
+    pub fn table_james_bond() -> Table {
         Table {
             id: TableId(1),
             name: TableName(String::from("table - James Bond")),
@@ -342,7 +342,7 @@ pub mod test_data {
         }
     }
 
-    fn table_mission_impossible() -> Table {
+    pub fn table_mission_impossible() -> Table {
         Table {
             id: TableId(2),
             name: TableName(String::from("table - Mission Impossible")),
@@ -350,7 +350,7 @@ pub mod test_data {
         }
     }
 
-    fn table_foo_fighters() -> Table {
+    pub fn table_foo_fighters() -> Table {
         Table {
             id: TableId(3),
             name: TableName(String::from("table - Foo Fighters")),

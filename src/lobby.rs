@@ -102,7 +102,7 @@ impl SharedLobby {
 #[cfg(test)]
 mod tests {
 
-    use crate::protocol::{Table, TableId, test_data};
+    use crate::protocol::{test_data, Table, TableId, TableName};
 
     use super::SharedLobby;
 
@@ -157,6 +157,56 @@ mod tests {
 
         // then
         assert!(result.is_err(), "Table should not be added");
+
+        let len_after = shared_lobby.len().await;
+        assert_eq!(len_after, len_before, "Number of tables should remain the same");
+    }
+
+    #[tokio::test]
+    async fn update_table() {
+
+        // given
+        let shared_lobby = SharedLobby::prepopulated();
+        let len_before = shared_lobby.len().await;
+
+        let index = 0;
+        let prepopulated_table = shared_lobby.read_table(index).await;
+        let table_to_update = Table {
+            name: TableName::new(String::from("table - Updated")),
+            ..prepopulated_table
+        };
+
+        // when
+        let result = shared_lobby.update_table(table_to_update.clone()).await;
+
+        // then
+        let updated_table = result.expect("Table should be updated");
+        assert_eq!(updated_table, table_to_update);
+
+        let len_after = shared_lobby.len().await;
+        assert_eq!(len_after, len_before, "Number of tables should remain the same");
+
+        let updated_table = shared_lobby.read_table(index).await;
+        assert_eq!(updated_table, table_to_update);
+    }
+
+    #[tokio::test]
+    async fn not_update_table_when_table_id_does_not_exist() {
+
+        // given
+        let shared_lobby = SharedLobby::prepopulated();
+        let len_before = shared_lobby.len().await;
+
+        let table_to_update = Table {
+            id: test_data::TABLE_ID_INVALID,
+            ..test_data::table_james_bond()
+        };
+
+        // when
+        let result = shared_lobby.update_table(table_to_update.clone()).await;
+
+        // then
+        assert!(result.is_err(), "Table should not be updated");
 
         let len_after = shared_lobby.len().await;
         assert_eq!(len_after, len_before, "Number of tables should remain the same");
