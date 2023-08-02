@@ -203,10 +203,48 @@ mod tests {
         };
 
         // when
-        let result = shared_lobby.update_table(table_to_update.clone()).await;
+        let result = shared_lobby.update_table(table_to_update).await;
 
         // then
         assert!(result.is_err(), "Table should not be updated");
+
+        let len_after = shared_lobby.len().await;
+        assert_eq!(len_after, len_before, "Number of tables should remain the same");
+    }
+
+    #[tokio::test]
+    async fn remove_table() {
+
+        // given
+        let shared_lobby = SharedLobby::prepopulated();
+        let len_before = shared_lobby.len().await;
+
+        let index = 0;
+        let prepopulated_table = shared_lobby.read_table(index).await;
+
+        // when
+        let result = shared_lobby.remove_table(prepopulated_table.id).await;
+
+        // then
+        let removed_table_id = result.expect("Table should be removed");
+        assert_eq!(removed_table_id, prepopulated_table.id);
+
+        let len_after = shared_lobby.len().await;
+        assert_eq!(len_after, len_before - 1, "Number of tables should decrease by one");
+    }
+
+    #[tokio::test]
+    async fn not_remove_table_when_table_id_does_not_exist() {
+
+        // given
+        let shared_lobby = SharedLobby::prepopulated();
+        let len_before = shared_lobby.len().await;
+
+        // when
+        let result = shared_lobby.remove_table(test_data::TABLE_ID_INVALID).await;
+
+        // then
+        assert!(result.is_err(), "Table should not be removed");
 
         let len_after = shared_lobby.len().await;
         assert_eq!(len_after, len_before, "Number of tables should remain the same");
