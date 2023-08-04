@@ -9,8 +9,8 @@ pub struct Seq(u64);
 #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Username(String);
-impl Username {
-    pub fn as_str(&self) -> &str {
+impl AsRef<str> for Username {
+    fn as_ref(&self) -> &str {
         &self.0
     }
 }
@@ -18,8 +18,8 @@ impl Username {
 #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Password(String);
-impl Password {
-    pub fn as_str(&self) -> &str {
+impl AsRef<str> for Password {
+    fn as_ref(&self) -> &str {
         &self.0
     }
 }

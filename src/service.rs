@@ -86,7 +86,7 @@ fn ping(seq: Seq) -> ProcessResult {
 }
 
 fn login(username: Username, password: Password) -> ProcessResult {
-    let user_type = match (username.as_str(), password.as_str()) {
+    let user_type = match (username.as_ref(), password.as_ref()) {
         ("admin", "admin") => Some(UserType::Admin),
         ("user", "user") => Some(UserType::User),
         _ => None,
