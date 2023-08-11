@@ -77,7 +77,7 @@ impl Table {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UserType {
     User,
@@ -97,7 +97,7 @@ pub enum Input {
     RemoveTable { id: TableId },
 }
 
-#[derive(Clone, Hash, Eq, EnumDiscriminants, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, Eq, EnumDiscriminants, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "$type", rename_all = "snake_case")]
 #[strum_discriminants(derive(EnumIter))]
 pub enum Output {

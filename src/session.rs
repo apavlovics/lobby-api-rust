@@ -9,10 +9,10 @@ use crate::{
 };
 
 /// Represents the sender, which can be used to output messages to the client.
-pub type ClientSender = UnboundedSender<Output>;
+type ClientSender = UnboundedSender<Output>;
 
 /// Represents the client session.
-pub struct Session {
+struct Session {
     pub client_id: ClientId,
     pub client_sender: ClientSender,
     pub user_type: Option<UserType>,
@@ -134,5 +134,49 @@ impl SharedSessions {
 
     fn no_session<T>(client_id: ClientId) -> Result<T, String> {
         Err(format!("Failed to retrieve session for client {:?}", client_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use tokio::sync::mpsc;
+
+    use crate::{
+        protocol::{test_data, Output},
+        service::ClientId,
+        session::SharedSessions,
+    };
+
+    #[tokio::test]
+    async fn send_output_to_existing_client_id() {
+        // given
+        let shared_sessions = SharedSessions::new();
+        let client_id = ClientId::new();
+        let (client_sender, mut client_receiver) = mpsc::unbounded_channel::<Output>();
+        let sent_output = test_data::pong();
+        shared_sessions.add(client_id, client_sender).await;
+
+        // when
+        let result = shared_sessions.send(client_id, sent_output.clone()).await;
+
+        // then
+        result.expect("Output should be sent");
+        let received_output = client_receiver.recv().await.expect("Output should be received");
+        assert_eq!(received_output, sent_output);
+    }
+
+    #[tokio::test]
+    async fn not_send_output_to_missing_client_id() {
+        // given
+        let shared_sessions = SharedSessions::new();
+        let client_id = ClientId::new();
+        let sent_output = test_data::pong();
+
+        // when
+        let result = shared_sessions.send(client_id, sent_output.clone()).await;
+
+        // then
+        assert!(result.is_err(), "Output should not be sent");
     }
 }
