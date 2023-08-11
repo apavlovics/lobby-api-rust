@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::RwLock;
@@ -21,14 +21,14 @@ struct Session {
 
 #[derive(Debug)]
 pub struct BroadcastResult {
-    pub success_client_ids: Vec<ClientId>,
-    pub failure_client_ids: Vec<ClientId>,
+    pub success_client_ids: HashSet<ClientId>,
+    pub failure_client_ids: HashSet<ClientId>,
 }
 impl BroadcastResult {
     pub fn new() -> Self {
         BroadcastResult {
-            success_client_ids: vec![],
-            failure_client_ids: vec![],
+            success_client_ids: HashSet::new(),
+            failure_client_ids: HashSet::new(),
         }
     }
 }
@@ -88,11 +88,11 @@ impl SharedSessions {
             })
             .fold(BroadcastResult::new(), |mut acc, result| match result {
                 Ok(client_id) => {
-                    acc.success_client_ids.push(client_id);
+                    acc.success_client_ids.insert(client_id);
                     acc
                 }
                 Err(client_id) => {
-                    acc.failure_client_ids.push(client_id);
+                    acc.failure_client_ids.insert(client_id);
                     acc
                 }
             })
@@ -140,6 +140,8 @@ impl SharedSessions {
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
+
     use tokio::sync::mpsc;
 
     use crate::{
@@ -178,5 +180,55 @@ mod tests {
 
         // then
         assert!(result.is_err(), "Output should not be sent");
+    }
+
+    #[tokio::test]
+    async fn broadcast_output_to_subscribed_client_ids() {
+        // given
+        let shared_sessions = SharedSessions::new();
+
+        let client_id_1 = ClientId::new();
+        let client_id_2 = ClientId::new();
+        let client_id_3 = ClientId::new();
+
+        let (client_sender_1, mut client_receiver_1) = mpsc::unbounded_channel::<Output>();
+        let (client_sender_2, mut client_receiver_2) = mpsc::unbounded_channel::<Output>();
+        let (client_sender_3, mut client_receiver_3) = mpsc::unbounded_channel::<Output>();
+
+        let broadcasted_output = test_data::pong();
+
+        shared_sessions.add(client_id_1, client_sender_1).await;
+        shared_sessions.add(client_id_2, client_sender_2).await;
+        shared_sessions.add(client_id_3, client_sender_3).await;
+
+        shared_sessions
+            .write_subscribed(client_id_2, true)
+            .await
+            .expect("Client #2 should be subscribed");
+        shared_sessions
+            .write_subscribed(client_id_3, true)
+            .await
+            .expect("Client #3 should be subscribed");
+
+        // when
+        let broadcast_result = shared_sessions.broadcast(broadcasted_output.clone()).await;
+
+        // then
+        assert_eq!(broadcast_result.success_client_ids, HashSet::from([client_id_2, client_id_3]));
+        assert!(broadcast_result.failure_client_ids.is_empty());
+
+        let received_output_1 = client_receiver_1.recv().await;
+        let received_output_2 = client_receiver_2
+            .recv()
+            .await
+            .expect("Output for client #2 should be received");
+        let received_output_3 = client_receiver_3
+            .recv()
+            .await
+            .expect("Output for client #3 should be received");
+
+        assert!(received_output_1.is_none(), "Output for client #1 should not be received");
+        assert_eq!(received_output_2, broadcasted_output);
+        assert_eq!(received_output_3, broadcasted_output);
     }
 }
