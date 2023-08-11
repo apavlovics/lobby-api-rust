@@ -217,7 +217,7 @@ mod tests {
         assert_eq!(broadcast_result.success_client_ids, HashSet::from([client_id_2, client_id_3]));
         assert!(broadcast_result.failure_client_ids.is_empty());
 
-        let received_output_1 = client_receiver_1.recv().await;
+        let received_output_1 = client_receiver_1.try_recv();
         let received_output_2 = client_receiver_2
             .recv()
             .await
@@ -227,7 +227,7 @@ mod tests {
             .await
             .expect("Output for client #3 should be received");
 
-        assert!(received_output_1.is_none(), "Output for client #1 should not be received");
+        assert!(received_output_1.is_err(), "Output for client #1 should not be received");
         assert_eq!(received_output_2, broadcasted_output);
         assert_eq!(received_output_3, broadcasted_output);
     }
