@@ -231,4 +231,33 @@ mod tests {
         assert_eq!(received_output_2, broadcasted_output);
         assert_eq!(received_output_3, broadcasted_output);
     }
+
+    #[tokio::test]
+    async fn read_user_type_of_existing_client_id() {
+        // given
+        let shared_sessions = SharedSessions::new();
+        let client_id = ClientId::new();
+        let (client_sender, _) = mpsc::unbounded_channel::<Output>();
+        shared_sessions.add(client_id, client_sender).await;
+
+        // when
+        let result = shared_sessions.read_user_type(client_id).await;
+
+        // then
+        let user_type = result.expect("User type should be read");
+        assert!(user_type.is_none(), "User type should be none");
+    }
+
+    #[tokio::test]
+    async fn not_read_user_type_of_missing_client_id() {
+        // given
+        let shared_sessions = SharedSessions::new();
+        let client_id = ClientId::new();
+
+        // when
+        let result = shared_sessions.read_user_type(client_id).await;
+
+        // then
+        assert!(result.is_err(), "User type should not be read");
+    }
 }
