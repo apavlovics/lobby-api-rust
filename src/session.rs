@@ -145,7 +145,7 @@ mod tests {
     use tokio::sync::mpsc;
 
     use crate::{
-        protocol::{test_data, Output},
+        protocol::{test_data, Output, UserType},
         service::ClientId,
         session::SharedSessions,
     };
@@ -259,5 +259,43 @@ mod tests {
 
         // then
         assert!(result.is_err(), "User type should not be read");
+    }
+
+    #[tokio::test]
+    async fn write_user_type_of_existing_client_id() {
+        // given
+        let shared_sessions = SharedSessions::new();
+        let client_id = ClientId::new();
+        let (client_sender, _) = mpsc::unbounded_channel::<Output>();
+        let written_user_type = UserType::Admin;
+        shared_sessions.add(client_id, client_sender).await;
+
+        // when
+        let write_result = shared_sessions
+            .write_user_type(client_id, Some(written_user_type.clone()))
+            .await;
+
+        // then
+        write_result.expect("User type should be written");
+
+        let read_user_type = shared_sessions
+            .read_user_type(client_id)
+            .await
+            .expect("User type should be read")
+            .expect("User type should not be none");
+        assert_eq!(read_user_type, written_user_type);
+    }
+
+    #[tokio::test]
+    async fn not_write_user_type_of_existing_client_id() {
+        // given
+        let shared_sessions = SharedSessions::new();
+        let client_id = ClientId::new();
+
+        // when
+        let result = shared_sessions.write_user_type(client_id, Some(UserType::Admin)).await;
+
+        // then
+        assert!(result.is_err(), "User type should not be written");
     }
 }
