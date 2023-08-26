@@ -152,7 +152,6 @@ mod tests {
 
     #[tokio::test]
     async fn send_output_to_existing_client_id() {
-        // given
         let shared_sessions = SharedSessions::new();
         let client_id = ClientId::new();
         let (client_sender, mut client_receiver) = mpsc::unbounded_channel::<Output>();
@@ -170,7 +169,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_send_output_to_missing_client_id() {
-        // given
         let shared_sessions = SharedSessions::new();
         let client_id = ClientId::new();
         let sent_output = test_data::pong();
@@ -184,7 +182,6 @@ mod tests {
 
     #[tokio::test]
     async fn broadcast_output_to_subscribed_client_ids() {
-        // given
         let shared_sessions = SharedSessions::new();
 
         let client_id_1 = ClientId::new();
@@ -234,7 +231,6 @@ mod tests {
 
     #[tokio::test]
     async fn read_user_type_of_existing_client_id() {
-        // given
         let shared_sessions = SharedSessions::new();
         let client_id = ClientId::new();
         let (client_sender, _) = mpsc::unbounded_channel::<Output>();
@@ -250,7 +246,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_read_user_type_of_missing_client_id() {
-        // given
         let shared_sessions = SharedSessions::new();
         let client_id = ClientId::new();
 
@@ -263,7 +258,6 @@ mod tests {
 
     #[tokio::test]
     async fn write_user_type_of_existing_client_id() {
-        // given
         let shared_sessions = SharedSessions::new();
         let client_id = ClientId::new();
         let (client_sender, _) = mpsc::unbounded_channel::<Output>();
@@ -288,7 +282,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_write_user_type_of_existing_client_id() {
-        // given
         let shared_sessions = SharedSessions::new();
         let client_id = ClientId::new();
 

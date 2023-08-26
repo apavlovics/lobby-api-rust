@@ -100,7 +100,6 @@ mod tests {
 
     #[tokio::test]
     async fn add_table_in_front() {
-        // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
@@ -120,7 +119,6 @@ mod tests {
 
     #[tokio::test]
     async fn add_table_after_another_table() {
-        // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
         let first_table = shared_lobby.read_table(0).await;
@@ -141,7 +139,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_add_table_when_after_id_does_not_exist() {
-        // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
@@ -159,7 +156,6 @@ mod tests {
 
     #[tokio::test]
     async fn update_table() {
-        // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
@@ -186,7 +182,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_update_table_when_table_id_does_not_exist() {
-        // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
@@ -207,7 +202,6 @@ mod tests {
 
     #[tokio::test]
     async fn remove_table() {
-        // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
@@ -227,7 +221,6 @@ mod tests {
 
     #[tokio::test]
     async fn not_remove_table_when_table_id_does_not_exist() {
-        // given
         let shared_lobby = SharedLobby::prepopulated();
         let len_before = shared_lobby.len().await;
 
