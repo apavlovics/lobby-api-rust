@@ -86,7 +86,7 @@ To add a new table:
   "$type": "add_table",
   "after_id": 2,
   "table": {
-    "name": "table - Foo Fighters",
+    "name": "Foo Fighters",
     "participants": 4
   }
 }
@@ -99,7 +99,7 @@ To update an existing table:
   "$type": "update_table",
   "table": {
     "id": 1,
-    "name": "table - Pink Floyd",
+    "name": "Pink Floyd",
     "participants": 4
   }
 }

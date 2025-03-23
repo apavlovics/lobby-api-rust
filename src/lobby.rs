@@ -13,12 +13,12 @@ impl Lobby {
             tables: vec![
                 Table {
                     id: TableId::new(),
-                    name: TableName::new(String::from("table - James Bond")),
+                    name: TableName::new(String::from("James Bond")),
                     participants: 7,
                 },
                 Table {
                     id: TableId::new(),
-                    name: TableName::new(String::from("table - Mission Impossible")),
+                    name: TableName::new(String::from("Mission Impossible")),
                     participants: 9,
                 },
             ],
@@ -162,7 +162,7 @@ mod tests {
         let index = 0;
         let prepopulated_table = shared_lobby.read_table(index).await;
         let table_to_update = Table {
-            name: TableName::new(String::from("table - Updated")),
+            name: TableName::new(String::from("Updated")),
             ..prepopulated_table
         };
 

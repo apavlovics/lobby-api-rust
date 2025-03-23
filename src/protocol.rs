@@ -166,7 +166,7 @@ mod tests {
                         "$type": "add_table",
                         "after_id": -1,
                         "table": {
-                          "name": "table - Foo Fighters",
+                          "name": "Foo Fighters",
                           "participants": 4
                         }
                     }"#,
@@ -177,7 +177,7 @@ mod tests {
                         "$type": "update_table",
                         "table": {
                           "id": 3,
-                          "name": "table - Foo Fighters",
+                          "name": "Foo Fighters",
                           "participants": 4
                         }
                     }"#,
@@ -241,11 +241,11 @@ mod tests {
                       "tables": [
                         {
                           "id": 1,
-                          "name": "table - James Bond",
+                          "name": "James Bond",
                           "participants": 7
                         }, {
                           "id": 2,
-                          "name": "table - Mission Impossible",
+                          "name": "Mission Impossible",
                           "participants": 9
                         }
                       ]
@@ -258,7 +258,7 @@ mod tests {
                         "after_id": -1,
                         "table": {
                             "id": 3,
-                            "name": "table - Foo Fighters",
+                            "name": "Foo Fighters",
                             "participants": 4
                         }
                     }),
@@ -269,7 +269,7 @@ mod tests {
                         "$type": "table_updated",
                         "table": {
                             "id": 3,
-                            "name": "table - Foo Fighters",
+                            "name": "Foo Fighters",
                             "participants": 4
                         }
                     }),
@@ -338,7 +338,7 @@ pub mod test_data {
     pub fn table_james_bond() -> Table {
         Table {
             id: TableId(1),
-            name: TableName(String::from("table - James Bond")),
+            name: TableName(String::from("James Bond")),
             participants: 7,
         }
     }
@@ -346,7 +346,7 @@ pub mod test_data {
     pub fn table_mission_impossible() -> Table {
         Table {
             id: TableId(2),
-            name: TableName(String::from("table - Mission Impossible")),
+            name: TableName(String::from("Mission Impossible")),
             participants: 9,
         }
     }
@@ -354,14 +354,14 @@ pub mod test_data {
     pub fn table_foo_fighters() -> Table {
         Table {
             id: TableId(3),
-            name: TableName(String::from("table - Foo Fighters")),
+            name: TableName(String::from("Foo Fighters")),
             participants: 4,
         }
     }
 
     pub fn table_to_add_foo_fighters() -> TableToAdd {
         TableToAdd {
-            name: TableName(String::from("table - Foo Fighters")),
+            name: TableName(String::from("Foo Fighters")),
             participants: 4,
         }
     }
